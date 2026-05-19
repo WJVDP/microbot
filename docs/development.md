@@ -47,6 +47,7 @@ Local setup, build commands, and script authoring entry points.
 
 ## Additional References
 - Installation steps and launcher notes: `docs/installation.md`
+- RuneLite upstream update process: `docs/runelite-update-playbook.md`
 - Fork remotes, branch ownership, and required checks: `docs/fork-workflow.md`
 - Release checklist: `docs/release-workflow.md`
 - Modernization roadmap: `docs/fork-modernization-roadmap.md`
