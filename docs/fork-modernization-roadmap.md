@@ -74,6 +74,12 @@ Status as of 2026-05-19:
 - Created local durable branches for RuneLite integration, Microbot integration, plugin runtime work, and UI shell work.
 - Made CI's Phase 1 checks explicit in `ci/build.sh`.
 - Added `docs/fork-workflow.md` and `docs/release-workflow.md`.
+- Added `docs/runelite-update-playbook.md` and `scripts/update-runelite-report.sh`.
+- Ran the baseline build/test commands with a workspace-local Gradle cache.
+- Began Phase 3 with `docs/plugin-runtime-v2-inventory.md`.
+- Added read-only Plugin Runtime V2 artifact/repository scaffolding under
+  `net.runelite.client.plugins.runtime`, with manifest-backed metadata
+  discovery tests and shared validation scaffolding.
 
 Tasks:
 
@@ -341,9 +347,9 @@ Acceptance criteria:
 
 ## Immediate Next Actions
 
-1. Import or clone the actual Microbot source into this workspace.
-2. Configure fork and upstream remotes.
-3. Add the RuneLite update playbook.
-4. Add the RuneLite update report script.
-5. Run the baseline build/test commands.
-6. Begin Phase 3 design with a full inventory of current plugin loading code.
+1. Wire `PluginArtifactValidator` to the existing Microbot disabled and
+   `minClientVersion` checks while preserving current load order.
+2. Add duplicate-id and invalid-metadata tests around `PluginArtifact`
+   discovery.
+3. Decide whether Microbot hub jars should declare entry classes through
+   `microbot_plugin.json` or reuse `runelite_plugin.json`.
