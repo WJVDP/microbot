@@ -46,11 +46,23 @@ public class LocalDirectoryPluginRepository implements PluginRepository
 	{
 		String name = file.getName();
 		String id = name.endsWith(".jar") ? name.substring(0, name.length() - 4) : name;
+		List<String> entryClasses = PluginJarStubReader.readEntryClassesOrEmpty(file);
+		boolean malformedManifest = PluginJarStubReader.hasMalformedManifest(file);
+		PluginArtifactMetadataSource metadataSource = PluginArtifactMetadataSource.JAR_STUB;
+		if (entryClasses.isEmpty() && !malformedManifest)
+		{
+			entryClasses = LegacyPluginDescriptorJarScanner.scanEntryClassesOrEmpty(file);
+			metadataSource = entryClasses.isEmpty()
+				? PluginArtifactMetadataSource.FILE_NAME
+				: PluginArtifactMetadataSource.LEGACY_PLUGIN_DESCRIPTOR_SCAN;
+		}
+
 		return PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, id)
 			.displayName(id)
 			.artifactFile(file)
-			.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(file))
-			.malformedManifest(PluginJarStubReader.hasMalformedManifest(file))
+			.entryClasses(entryClasses)
+			.malformedManifest(malformedManifest)
+			.metadataSource(metadataSource)
 			.build();
 	}
 }

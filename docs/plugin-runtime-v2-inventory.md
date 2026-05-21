@@ -80,6 +80,17 @@ Microbot Hub:
 - Existing jars without `runelite_plugin.json` are scanned and classes are
   filtered by `@PluginDescriptor` through the legacy compatibility path.
 
+Runtime V2 now records the metadata path on each artifact:
+
+- `CORE_ANNOTATION` for core classpath plugins.
+- `HUB_MANIFEST` for hub records that do not have an installed artifact file
+  available yet.
+- `JAR_STUB` for artifact jars with `runelite_plugin.json`.
+- `LEGACY_PLUGIN_DESCRIPTOR_SCAN` for installed jars without a valid stub that
+  still need the whole-jar annotation compatibility adapter.
+- `FILE_NAME` for local jars that have no stub and no descriptor-backed entry
+  classes.
+
 Core and sideloaded plugins:
 
 - Metadata comes from Java annotations, primarily `@PluginDescriptor` and
@@ -134,6 +145,23 @@ Gaps:
    repository and artifact model is covered by tests.
 5. Move Microbot compatibility/disabled checks out of the duplicate loader and
    into a shared validation step.
+
+## Milestone 2 Fallback Rules
+
+Runtime V2 discovery uses this order for artifact jars:
+
+1. Read `runelite_plugin.json` from the installed artifact file.
+2. If the stub is absent and the jar is otherwise readable, use the named
+   legacy descriptor scanner to find `Plugin` subclasses annotated with
+   `@PluginDescriptor`.
+3. If neither path finds entry classes, keep the artifact in status output and
+   let validation report `Plugin entry classes are missing`.
+
+Malformed `runelite_plugin.json` does not fall through to descriptor scanning;
+it remains a verifier error so bad metadata is visible to Bridge/runtime
+callers. The descriptor scanner is sunset once all supported build and sideload
+paths emit `runelite_plugin.json` and one stable release cycle reports no
+loadable `LEGACY_PLUGIN_DESCRIPTOR_SCAN` artifacts.
 
 ## Open Design Questions
 

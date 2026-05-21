@@ -45,6 +45,7 @@ public class CorePluginRepository implements PluginRepository
 		return PluginArtifact.builder(PluginArtifactSource.CORE, id)
 			.displayName(displayName)
 			.entryClasses(pluginClass.getName())
+			.metadataSource(PluginArtifactMetadataSource.CORE_ANNOTATION)
 			.disabled(descriptor != null && descriptor.disable())
 			.build();
 	}

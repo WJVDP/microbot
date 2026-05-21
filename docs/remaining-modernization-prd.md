@@ -89,10 +89,12 @@ Verification:
 - `./gradlew :client:runUnitTests --tests net.runelite.client.plugins.runtime.PluginRuntimeTest --tests net.runelite.client.plugins.runtime.PluginRepositoryTest`
 - `./gradlew :client:check`
 
-### Milestone 2: Complete Artifact Metadata Coverage
+### Milestone 2: Complete Artifact Metadata Coverage - Done
 
 **Why second:** the UI and lifecycle adapter need complete metadata across all
 plugin sources.
+
+Status: completed in the current Runtime V2 workspace slice.
 
 Requirements:
 
@@ -109,6 +111,31 @@ Acceptance criteria:
 - Runtime V2 can report metadata for all plugin sources through one API.
 - Manifest-backed jars expose entry classes without arbitrary class loading.
 - Legacy scanning is isolated and named as compatibility behavior.
+
+Implementation policy:
+
+- `PluginRuntime.discoverStatus()` is the single Runtime V2 discovery/status
+  API for core, RuneLite Hub, Microbot Hub, and local-directory artifacts. Each
+  status carries the artifact source and the metadata source used during
+  discovery.
+- Core plugins use classpath `@PluginDescriptor` metadata because they are
+  already part of the client classpath.
+- RuneLite Hub, Microbot Hub, and local-directory jars first read
+  `runelite_plugin.json` from the artifact file when the file is available.
+  Stub-backed jars expose entry classes from `PluginHubManifest.Stub.plugins`
+  without loading plugin classes.
+- Whole-jar `@PluginDescriptor` scanning is retained only as
+  `LEGACY_PLUGIN_DESCRIPTOR_SCAN` compatibility behavior for artifact jars that
+  do not contain a valid `runelite_plugin.json` stub. This adapter may load
+  classes and must not be used for new artifacts.
+- The legacy adapter can be removed after released RuneLite Hub, Microbot Hub,
+  and documented local sideload tooling all emit `runelite_plugin.json`, and
+  after Runtime V2 status telemetry shows no loadable artifact still depending
+  on `LEGACY_PLUGIN_DESCRIPTOR_SCAN` for one stable release cycle.
+
+Verification:
+
+- `./gradlew :client:runUnitTests --tests net.runelite.client.plugins.runtime.PluginRuntimeTest --tests net.runelite.client.plugins.runtime.PluginRepositoryTest`
 
 ### Milestone 3: Bridge V1 Contract Completion
 

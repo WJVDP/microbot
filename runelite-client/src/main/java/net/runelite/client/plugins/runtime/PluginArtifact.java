@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 public final class PluginArtifact
 {
 	private final PluginArtifactSource source;
+	private final PluginArtifactMetadataSource metadataSource;
 	private final String id;
 	private final String displayName;
 	private final String version;
@@ -32,6 +33,7 @@ public final class PluginArtifact
 
 	private PluginArtifact(
 		PluginArtifactSource source,
+		PluginArtifactMetadataSource metadataSource,
 		String id,
 		String displayName,
 		String version,
@@ -44,6 +46,7 @@ public final class PluginArtifact
 		boolean malformedManifest)
 	{
 		this.source = Objects.requireNonNull(source, "source");
+		this.metadataSource = Objects.requireNonNull(metadataSource, "metadataSource");
 		this.id = requireText(id, "id");
 		this.displayName = displayName == null || displayName.trim().isEmpty() ? id : displayName;
 		this.version = version == null ? "" : version;
@@ -64,6 +67,11 @@ public final class PluginArtifact
 	public PluginArtifactSource getSource()
 	{
 		return source;
+	}
+
+	public PluginArtifactMetadataSource getMetadataSource()
+	{
+		return metadataSource;
 	}
 
 	public String getId()
@@ -139,6 +147,7 @@ public final class PluginArtifact
 	{
 		private final PluginArtifactSource source;
 		private final String id;
+		private PluginArtifactMetadataSource metadataSource;
 		private String displayName;
 		private String version;
 		private String checksumSha256;
@@ -158,6 +167,12 @@ public final class PluginArtifact
 		public Builder displayName(String displayName)
 		{
 			this.displayName = displayName;
+			return this;
+		}
+
+		public Builder metadataSource(PluginArtifactMetadataSource metadataSource)
+		{
+			this.metadataSource = metadataSource;
 			return this;
 		}
 
@@ -219,6 +234,7 @@ public final class PluginArtifact
 		{
 			return new PluginArtifact(
 				source,
+				metadataSource == null ? defaultMetadataSource(source, artifactFile, entryClasses) : metadataSource,
 				id,
 				displayName,
 				version,
@@ -229,6 +245,26 @@ public final class PluginArtifact
 				minClientVersion,
 				disabled,
 				malformedManifest);
+		}
+
+		private static PluginArtifactMetadataSource defaultMetadataSource(
+			PluginArtifactSource source,
+			@Nullable File artifactFile,
+			List<String> entryClasses)
+		{
+			if (source == PluginArtifactSource.CORE)
+			{
+				return PluginArtifactMetadataSource.CORE_ANNOTATION;
+			}
+			if (artifactFile != null && entryClasses != null && !entryClasses.isEmpty())
+			{
+				return PluginArtifactMetadataSource.JAR_STUB;
+			}
+			if (artifactFile != null)
+			{
+				return PluginArtifactMetadataSource.FILE_NAME;
+			}
+			return PluginArtifactMetadataSource.HUB_MANIFEST;
 		}
 	}
 }

@@ -60,13 +60,26 @@ public class MicrobotHubPluginRepository implements PluginRepository
 			.version(manifest.getVersion())
 			.checksumSha256(manifest.getSha256())
 			.minClientVersion(manifest.getMinClientVersion())
-			.disabled(manifest.isDisable());
+			.disabled(manifest.isDisable())
+			.metadataSource(PluginArtifactMetadataSource.HUB_MANIFEST);
 
 		if (artifactFile != null)
 		{
+			List<String> entryClasses = PluginJarStubReader.readEntryClassesOrEmpty(artifactFile);
+			boolean malformedManifest = PluginJarStubReader.hasMalformedManifest(artifactFile);
+			PluginArtifactMetadataSource metadataSource = PluginArtifactMetadataSource.JAR_STUB;
+			if (entryClasses.isEmpty() && !malformedManifest)
+			{
+				entryClasses = LegacyPluginDescriptorJarScanner.scanEntryClassesOrEmpty(artifactFile);
+				metadataSource = entryClasses.isEmpty()
+					? PluginArtifactMetadataSource.HUB_MANIFEST
+					: PluginArtifactMetadataSource.LEGACY_PLUGIN_DESCRIPTOR_SCAN;
+			}
+
 			builder.artifactFile(artifactFile)
-				.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(artifactFile))
-				.malformedManifest(PluginJarStubReader.hasMalformedManifest(artifactFile));
+				.entryClasses(entryClasses)
+				.malformedManifest(malformedManifest)
+				.metadataSource(metadataSource);
 		}
 
 		return builder.build();

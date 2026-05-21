@@ -243,6 +243,7 @@ public class BridgeV1Handler extends AgentHandler
 		dto.put("displayName", artifact.getDisplayName());
 		dto.put("version", artifact.getVersion());
 		dto.put("source", artifact.getSource().name());
+		dto.put("metadataSource", artifact.getMetadataSource().name());
 		dto.put("entryClasses", artifact.getEntryClasses());
 		dto.put("minClientVersion", artifact.getMinClientVersion());
 		dto.put("checksumSha256", artifact.getChecksumSha256());

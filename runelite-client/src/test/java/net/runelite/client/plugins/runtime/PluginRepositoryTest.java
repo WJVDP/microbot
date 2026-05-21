@@ -6,13 +6,18 @@ package net.runelite.client.plugins.runtime;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import net.runelite.client.externalplugins.PluginHubManifest;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -56,7 +61,37 @@ public class PluginRepositoryTest
 		assertEquals("Example Display", artifact.getDisplayName());
 		assertEquals("1.2.3", artifact.getVersion());
 		assertEquals("hash", artifact.getChecksumSha256());
+		assertEquals(PluginArtifactMetadataSource.HUB_MANIFEST, artifact.getMetadataSource());
 		assertTrue(artifact.getEntryClasses().isEmpty());
+	}
+
+	@Test
+	public void discoversRuneLiteHubEntryClassesFromInstalledJarStub() throws Exception
+	{
+		File directory = temporaryFolder.newFolder();
+		File jar = new File(directory, "example.jar");
+		writeJarStub(jar, "example.DoesNotExistPlugin");
+
+		PluginHubManifest.JarData jarData = new PluginHubManifest.JarData();
+		jarData.setInternalName("example");
+		jarData.setDisplayName("Example Plugin");
+		jarData.setJarHash(base64Sha256(jar));
+		jarData.setJarSize((int) jar.length());
+		assertTrue(jar.renameTo(new File(directory, jarData.getInternalName() + "_" + jarData.getJarHash() + ".jar")));
+
+		PluginHubManifest.ManifestFull manifest = new PluginHubManifest.ManifestFull();
+		manifest.setJars(Collections.singletonList(jarData));
+
+		RuneLiteHubPluginRepository repository = new RuneLiteHubPluginRepository(() -> manifest, directory);
+
+		List<PluginArtifact> artifacts = repository.discover();
+
+		assertEquals(1, artifacts.size());
+		PluginArtifact artifact = artifacts.get(0);
+		assertEquals(PluginArtifactSource.RUNELITE_HUB, artifact.getSource());
+		assertEquals(Collections.singletonList("example.DoesNotExistPlugin"), artifact.getEntryClasses());
+		assertEquals(PluginArtifactMetadataSource.JAR_STUB, artifact.getMetadataSource());
+		assertEquals(hexSha256(artifact.getArtifactFile()), artifact.getChecksumSha256());
 	}
 
 	@Test
@@ -81,6 +116,7 @@ public class PluginRepositoryTest
 		assertEquals("2.0.0", artifact.getVersion());
 		assertEquals("abc123", artifact.getChecksumSha256());
 		assertEquals("1.10.0", artifact.getMinClientVersion());
+		assertEquals(PluginArtifactMetadataSource.HUB_MANIFEST, artifact.getMetadataSource());
 		assertTrue(artifact.getEntryClasses().isEmpty());
 	}
 
@@ -106,6 +142,7 @@ public class PluginRepositoryTest
 		PluginArtifact artifact = artifacts.get(0);
 		assertEquals(jar, artifact.getArtifactFile());
 		assertEquals(Arrays.asList("example.DoesNotExistPlugin", "example.OtherPlugin"), artifact.getEntryClasses());
+		assertEquals(PluginArtifactMetadataSource.JAR_STUB, artifact.getMetadataSource());
 	}
 
 	@Test
@@ -167,6 +204,7 @@ public class PluginRepositoryTest
 		assertEquals(PluginArtifactSource.LOCAL_DIRECTORY, artifact.getSource());
 		assertEquals("local-plugin", artifact.getId());
 		assertEquals(jar, artifact.getArtifactFile());
+		assertEquals(PluginArtifactMetadataSource.FILE_NAME, artifact.getMetadataSource());
 		assertTrue(artifact.getEntryClasses().isEmpty());
 	}
 
@@ -186,6 +224,25 @@ public class PluginRepositoryTest
 		assertEquals(PluginArtifactSource.LOCAL_DIRECTORY, artifact.getSource());
 		assertEquals("local-plugin", artifact.getId());
 		assertEquals(Collections.singletonList("local.DoesNotExistPlugin"), artifact.getEntryClasses());
+		assertEquals(PluginArtifactMetadataSource.JAR_STUB, artifact.getMetadataSource());
+	}
+
+	@Test
+	public void discoversLocalDirectoryEntryClassesFromLegacyDescriptorScan() throws Exception
+	{
+		File directory = temporaryFolder.newFolder();
+		File jar = new File(directory, "legacy-plugin.jar");
+		writeJarClass(jar, LegacyRuntimePlugin.class);
+
+		LocalDirectoryPluginRepository repository = new LocalDirectoryPluginRepository(directory);
+
+		List<PluginArtifact> artifacts = repository.discover();
+
+		assertEquals(1, artifacts.size());
+		PluginArtifact artifact = artifacts.get(0);
+		assertEquals("legacy-plugin", artifact.getId());
+		assertEquals(Collections.singletonList(LegacyRuntimePlugin.class.getName()), artifact.getEntryClasses());
+		assertEquals(PluginArtifactMetadataSource.LEGACY_PLUGIN_DESCRIPTOR_SCAN, artifact.getMetadataSource());
 	}
 
 	@Test
@@ -254,6 +311,46 @@ public class PluginRepositoryTest
 		}
 	}
 
+	private static void writeJarClass(File jar, Class<?> clazz) throws Exception
+	{
+		String classFile = clazz.getName().replace('.', '/') + ".class";
+		try (JarOutputStream outputStream = new JarOutputStream(new FileOutputStream(jar));
+			InputStream inputStream = clazz.getClassLoader().getResourceAsStream(classFile))
+		{
+			assertTrue("Missing class resource " + classFile, inputStream != null);
+			outputStream.putNextEntry(new JarEntry(classFile));
+			byte[] buffer = new byte[8192];
+			int read;
+			while ((read = inputStream.read(buffer)) != -1)
+			{
+				outputStream.write(buffer, 0, read);
+			}
+			outputStream.closeEntry();
+		}
+	}
+
+	private static String base64Sha256(File file) throws Exception
+	{
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(file));
+	}
+
+	private static String hexSha256(File file) throws Exception
+	{
+		byte[] hash = sha256(file);
+		StringBuilder builder = new StringBuilder(hash.length * 2);
+		for (byte value : hash)
+		{
+			builder.append(String.format("%02x", value));
+		}
+		return builder.toString();
+	}
+
+	private static byte[] sha256(File file) throws Exception
+	{
+		MessageDigest digest = MessageDigest.getInstance("SHA-256");
+		return digest.digest(java.nio.file.Files.readAllBytes(file.toPath()));
+	}
+
 	private static String stubJson(String... entryClasses)
 	{
 		StringBuilder builder = new StringBuilder("{\"plugins\":[");
@@ -266,5 +363,10 @@ public class PluginRepositoryTest
 			builder.append('"').append(entryClasses[i]).append('"');
 		}
 		return builder.append("]}").toString();
+	}
+
+	@PluginDescriptor(name = "Legacy Runtime Plugin")
+	public static final class LegacyRuntimePlugin extends Plugin
+	{
 	}
 }
