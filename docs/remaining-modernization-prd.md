@@ -165,6 +165,9 @@ Acceptance criteria:
 **Why fourth:** the shell becomes useful once status, plugin controls, and
 artifact status exist.
 
+Status: implemented in `ui-shell/` as a minimal Electron and TypeScript
+workspace.
+
 Requirements:
 
 - Add a `ui-shell/` workspace using TypeScript.
@@ -182,6 +185,24 @@ Acceptance criteria:
 - The shell can show plugin runtime status from the Java client.
 - Starting and stopping loaded plugins works through Bridge V1.
 - Artifact failures are visible with clear user-facing reasons.
+
+Implementation policy:
+
+- The shell is intentionally separate from the Java/Swing client. The Swing UI
+  remains available while the Bridge V1-backed shell matures.
+- Electron was selected for this milestone because it can read the local
+  `~/.runelite/.agent-token` file from the desktop process using the existing
+  Node/npm toolchain. Tauri can be reconsidered when packaging size or native
+  updater integration becomes a release requirement.
+- Bridge context is read from `MICROBOT_BRIDGE_URL` or `MICROBOT_HOST` /
+  `MICROBOT_PORT`, and the token is read from `MICROBOT_TOKEN`, then
+  `MICROBOT_TOKEN_FILE`, then `~/.runelite/.agent-token`.
+
+Verification:
+
+- `cd ui-shell && npm ci`
+- `cd ui-shell && npm run build`
+- `cd ui-shell && npm run typecheck`
 
 ### Milestone 5: Startup Timing And Plugin Health
 
