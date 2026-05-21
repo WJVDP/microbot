@@ -18,15 +18,22 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
+import net.runelite.client.plugins.runtime.PluginArtifact;
+import net.runelite.client.plugins.runtime.PluginRuntimeArtifactStatus;
+import net.runelite.client.plugins.runtime.PluginRuntimeDiscoveryResult;
 
 @Slf4j
 public class BridgeV1Handler extends AgentHandler
 {
 	private static final String BASE_PATH = "/bridge/v1";
 
-	public BridgeV1Handler(Gson gson)
+	private final MicrobotPluginManager microbotPluginManager;
+
+	public BridgeV1Handler(Gson gson, MicrobotPluginManager microbotPluginManager)
 	{
 		super(gson);
+		this.microbotPluginManager = microbotPluginManager;
 	}
 
 	@Override
@@ -48,6 +55,12 @@ public class BridgeV1Handler extends AgentHandler
 		if ("/plugins".equals(subPath))
 		{
 			handlePluginList(exchange);
+			return;
+		}
+
+		if ("/plugin-artifacts".equals(subPath))
+		{
+			handlePluginArtifacts(exchange);
 			return;
 		}
 
@@ -86,6 +99,32 @@ public class BridgeV1Handler extends AgentHandler
 		response.put("microbotVersion", RuneLiteProperties.getMicrobotVersion());
 		response.put("pluginManagerAvailable", pluginManager != null);
 		response.put("pluginCount", pluginManager == null ? 0 : pluginManager.getPlugins().size());
+		sendJson(exchange, 200, response);
+	}
+
+	private void handlePluginArtifacts(HttpExchange exchange) throws IOException
+	{
+		try
+		{
+			requireGet(exchange);
+		}
+		catch (HttpMethodException ex)
+		{
+			sendJson(exchange, 405, errorResponse(ex.getMessage()));
+			return;
+		}
+
+		PluginRuntimeDiscoveryResult result = microbotPluginManager.discoverPluginArtifactStatus();
+		List<Map<String, Object>> artifacts = new ArrayList<>();
+		for (PluginRuntimeArtifactStatus status : result.getArtifacts())
+		{
+			artifacts.add(toArtifactDto(status));
+		}
+
+		Map<String, Object> response = new LinkedHashMap<>();
+		response.put("count", artifacts.size());
+		response.put("hasErrors", result.hasErrors());
+		response.put("artifacts", artifacts);
 		sendJson(exchange, 200, response);
 	}
 
@@ -193,6 +232,23 @@ public class BridgeV1Handler extends AgentHandler
 		dto.put("hidden", descriptor != null && descriptor.hidden());
 		dto.put("external", descriptor != null && descriptor.isExternal());
 		dto.put("description", descriptor == null ? "" : descriptor.description());
+		return dto;
+	}
+
+	private static Map<String, Object> toArtifactDto(PluginRuntimeArtifactStatus status)
+	{
+		PluginArtifact artifact = status.getArtifact();
+		Map<String, Object> dto = new LinkedHashMap<>();
+		dto.put("id", artifact.getId());
+		dto.put("displayName", artifact.getDisplayName());
+		dto.put("version", artifact.getVersion());
+		dto.put("source", artifact.getSource().name());
+		dto.put("entryClasses", artifact.getEntryClasses());
+		dto.put("minClientVersion", artifact.getMinClientVersion());
+		dto.put("checksumSha256", artifact.getChecksumSha256());
+		dto.put("installed", artifact.getArtifactFile() != null);
+		dto.put("loadable", status.isLoadable());
+		dto.put("errors", status.getErrors());
 		return dto;
 	}
 

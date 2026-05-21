@@ -55,6 +55,8 @@ import net.runelite.client.plugins.runtime.PluginArtifactSource;
 import net.runelite.client.plugins.runtime.PluginArtifactValidationResult;
 import net.runelite.client.plugins.runtime.PluginArtifactValidator;
 import net.runelite.client.plugins.runtime.MicrobotHubPluginRepository;
+import net.runelite.client.plugins.runtime.PluginRuntime;
+import net.runelite.client.plugins.runtime.PluginRuntimeDiscoveryResult;
 import net.runelite.client.ui.SplashScreen;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -205,6 +207,15 @@ public class MicrobotPluginManager {
                 () -> new ArrayList<>(manifestMap.values()),
                 PLUGIN_DIR)
                 .discover();
+    }
+
+    public PluginRuntimeDiscoveryResult discoverPluginArtifactStatus() throws IOException {
+        return new PluginRuntime(
+                Collections.singletonList(new MicrobotHubPluginRepository(
+                        () -> new ArrayList<>(manifestMap.values()),
+                        PLUGIN_DIR)),
+                artifactValidator)
+                .discoverStatus();
     }
 
     /**

@@ -67,9 +67,34 @@ Stops the loaded plugin with class-name `id` through `PluginManager`.
 Both command endpoints return the same plugin object shape as the list endpoint
 plus a `changed` boolean.
 
+### `GET /bridge/v1/plugin-artifacts`
+
+Returns Plugin Runtime V2 artifact metadata and validation status for Microbot
+Hub artifacts.
+
+```json
+{
+  "count": 1,
+  "hasErrors": false,
+  "artifacts": [
+    {
+      "id": "example",
+      "displayName": "Example",
+      "version": "1.0.0",
+      "source": "MICROBOT_HUB",
+      "entryClasses": ["example.ExamplePlugin"],
+      "minClientVersion": "1.10.0",
+      "checksumSha256": "abc123",
+      "installed": true,
+      "loadable": true,
+      "errors": []
+    }
+  ]
+}
+```
+
 ## Next Contract Additions
 
-- `GET /bridge/v1/plugin-artifacts` backed by Plugin Runtime V2 discovery.
 - Install, update, and remove commands backed by `MicrobotPluginManager`.
 - Typed config schema for RuneLite and Microbot plugin settings.
 - Read-only event stream for plugin state changes, logs, and health metrics.
