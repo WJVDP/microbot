@@ -39,7 +39,7 @@ public class LocalDirectoryPluginRepository implements PluginRepository
 		{
 			artifacts.add(toArtifact(file));
 		}
-		return PluginArtifacts.requireUniqueIds(artifacts);
+		return artifacts;
 	}
 
 	private static PluginArtifact toArtifact(File file)
@@ -50,6 +50,7 @@ public class LocalDirectoryPluginRepository implements PluginRepository
 			.displayName(id)
 			.artifactFile(file)
 			.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(file))
+			.malformedManifest(PluginJarStubReader.hasMalformedManifest(file))
 			.build();
 	}
 }

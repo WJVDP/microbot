@@ -5,6 +5,7 @@
 package net.runelite.client.plugins.runtime;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,6 +67,27 @@ final class PluginJarStubReader
 		catch (IOException ex)
 		{
 			return Collections.emptyList();
+		}
+		catch (JsonParseException ex)
+		{
+			return Collections.emptyList();
+		}
+	}
+
+	static boolean hasMalformedManifest(File jarFile)
+	{
+		try
+		{
+			readEntryClasses(jarFile);
+			return false;
+		}
+		catch (JsonParseException ex)
+		{
+			return true;
+		}
+		catch (IOException ex)
+		{
+			return false;
 		}
 	}
 }

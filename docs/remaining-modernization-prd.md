@@ -69,6 +69,19 @@ Acceptance criteria:
 - Verification happens before class loading for artifacts with files.
 - Local sideload and Microbot Hub hash policy is consistent and documented.
 
+Implementation policy:
+
+- Runtime V2 verifies checksum metadata before status reports mark an artifact
+  loadable. A declared checksum requires a local artifact file and the file must
+  match the declared SHA-256.
+- Local sideloaded jars without declared checksum metadata remain loadable when
+  their manifest and compatibility checks pass. If a local artifact later gains
+  checksum metadata, Runtime V2 applies the same SHA-256 check used for hub
+  artifacts.
+- Signature metadata is carried on `PluginArtifact` and checked through the
+  `PluginArtifactSignatureVerifier` extension point. The default verifier does
+  not enforce a trust model until the community plugin signing model is decided.
+
 ### Milestone 2: Complete Artifact Metadata Coverage
 
 **Why second:** the UI and lifecycle adapter need complete metadata across all

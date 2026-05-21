@@ -19,6 +19,7 @@ public class PluginRuntime
 
 	private final List<PluginRepository> repositories;
 	private final PluginArtifactValidator validator;
+	private final PluginArtifactVerifier verifier;
 
 	public PluginRuntime(Collection<PluginRepository> repositories)
 	{
@@ -27,8 +28,14 @@ public class PluginRuntime
 
 	public PluginRuntime(Collection<PluginRepository> repositories, PluginArtifactValidator validator)
 	{
+		this(repositories, validator, new PluginArtifactVerifier());
+	}
+
+	public PluginRuntime(Collection<PluginRepository> repositories, PluginArtifactValidator validator, PluginArtifactVerifier verifier)
+	{
 		this.repositories = Collections.unmodifiableList(new ArrayList<>(Objects.requireNonNull(repositories, "repositories")));
 		this.validator = Objects.requireNonNull(validator, "validator");
+		this.verifier = Objects.requireNonNull(verifier, "verifier");
 	}
 
 	public List<PluginRepository> getRepositories()
@@ -58,7 +65,8 @@ public class PluginRuntime
 		List<PluginRuntimeArtifactStatus> statuses = new ArrayList<>(artifacts.size());
 		for (PluginArtifact artifact : artifacts)
 		{
-			List<String> errors = new ArrayList<>(validator.validate(artifact).getErrors());
+			List<String> errors = new ArrayList<>(verifier.verify(artifact).getErrors());
+			errors.addAll(validator.validate(artifact).getErrors());
 			if (idCounts.getOrDefault(artifact.getId(), 0) > 1)
 			{
 				errors.add(DUPLICATE_ID_ERROR_PREFIX + artifact.getId());

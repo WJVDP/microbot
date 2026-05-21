@@ -21,11 +21,14 @@ public final class PluginArtifact
 	@Nullable
 	private final String checksumSha256;
 	@Nullable
+	private final String signature;
+	@Nullable
 	private final File artifactFile;
 	private final List<String> entryClasses;
 	@Nullable
 	private final String minClientVersion;
 	private final boolean disabled;
+	private final boolean malformedManifest;
 
 	private PluginArtifact(
 		PluginArtifactSource source,
@@ -33,20 +36,24 @@ public final class PluginArtifact
 		String displayName,
 		String version,
 		@Nullable String checksumSha256,
+		@Nullable String signature,
 		@Nullable File artifactFile,
 		List<String> entryClasses,
 		@Nullable String minClientVersion,
-		boolean disabled)
+		boolean disabled,
+		boolean malformedManifest)
 	{
 		this.source = Objects.requireNonNull(source, "source");
 		this.id = requireText(id, "id");
 		this.displayName = displayName == null || displayName.trim().isEmpty() ? id : displayName;
 		this.version = version == null ? "" : version;
 		this.checksumSha256 = emptyToNull(checksumSha256);
+		this.signature = emptyToNull(signature);
 		this.artifactFile = artifactFile;
 		this.entryClasses = Collections.unmodifiableList(new ArrayList<>(entryClasses));
 		this.minClientVersion = emptyToNull(minClientVersion);
 		this.disabled = disabled;
+		this.malformedManifest = malformedManifest;
 	}
 
 	public static Builder builder(PluginArtifactSource source, String id)
@@ -81,6 +88,12 @@ public final class PluginArtifact
 	}
 
 	@Nullable
+	public String getSignature()
+	{
+		return signature;
+	}
+
+	@Nullable
 	public File getArtifactFile()
 	{
 		return artifactFile;
@@ -100,6 +113,11 @@ public final class PluginArtifact
 	public boolean isDisabled()
 	{
 		return disabled;
+	}
+
+	public boolean hasMalformedManifest()
+	{
+		return malformedManifest;
 	}
 
 	private static String requireText(String value, String field)
@@ -124,10 +142,12 @@ public final class PluginArtifact
 		private String displayName;
 		private String version;
 		private String checksumSha256;
+		private String signature;
 		private File artifactFile;
 		private List<String> entryClasses = Collections.emptyList();
 		private String minClientVersion;
 		private boolean disabled;
+		private boolean malformedManifest;
 
 		private Builder(PluginArtifactSource source, String id)
 		{
@@ -150,6 +170,12 @@ public final class PluginArtifact
 		public Builder checksumSha256(String checksumSha256)
 		{
 			this.checksumSha256 = checksumSha256;
+			return this;
+		}
+
+		public Builder signature(String signature)
+		{
+			this.signature = signature;
 			return this;
 		}
 
@@ -183,6 +209,12 @@ public final class PluginArtifact
 			return this;
 		}
 
+		public Builder malformedManifest(boolean malformedManifest)
+		{
+			this.malformedManifest = malformedManifest;
+			return this;
+		}
+
 		public PluginArtifact build()
 		{
 			return new PluginArtifact(
@@ -191,10 +223,12 @@ public final class PluginArtifact
 				displayName,
 				version,
 				checksumSha256,
+				signature,
 				artifactFile,
 				entryClasses,
 				minClientVersion,
-				disabled);
+				disabled,
+				malformedManifest);
 		}
 	}
 }

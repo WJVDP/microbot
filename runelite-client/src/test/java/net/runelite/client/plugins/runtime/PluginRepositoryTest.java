@@ -109,7 +109,7 @@ public class PluginRepositoryTest
 	}
 
 	@Test
-	public void rejectsDuplicateMicrobotHubArtifactIds() throws Exception
+	public void allowsDuplicateMicrobotHubArtifactIdsForRuntimeStatus() throws Exception
 	{
 		MicrobotPluginManifest first = new MicrobotPluginManifest();
 		first.setInternalName("duplicate");
@@ -121,17 +121,11 @@ public class PluginRepositoryTest
 
 		MicrobotHubPluginRepository repository = new MicrobotHubPluginRepository(() -> Arrays.asList(first, second));
 
-		try
-		{
-			repository.discover();
-		}
-		catch (IllegalArgumentException ex)
-		{
-			assertEquals("Duplicate plugin artifact id: duplicate", ex.getMessage());
-			return;
-		}
+		List<PluginArtifact> artifacts = repository.discover();
 
-		throw new AssertionError("duplicate artifact ids should be rejected");
+		assertEquals(2, artifacts.size());
+		assertEquals("duplicate", artifacts.get(0).getId());
+		assertEquals("duplicate", artifacts.get(1).getId());
 	}
 
 	@Test

@@ -41,9 +41,9 @@ public class RuneLiteHubPluginRepository implements PluginRepository
 			: manifest.getDisplay().stream()
 				.collect(Collectors.toMap(PluginHubManifest.DisplayData::getInternalName, d -> d, (a, b) -> a));
 
-		return PluginArtifacts.requireUniqueIds(manifest.getJars().stream()
+		return manifest.getJars().stream()
 			.map(jar -> toArtifact(jar, displayByName.get(jar.getInternalName())))
-			.collect(Collectors.toList()));
+			.collect(Collectors.toList());
 	}
 
 	private static PluginArtifact toArtifact(PluginHubManifest.JarData jar, PluginHubManifest.DisplayData display)

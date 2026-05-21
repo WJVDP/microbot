@@ -29,9 +29,9 @@ public class CorePluginRepository implements PluginRepository
 	@Override
 	public List<PluginArtifact> discover() throws IOException
 	{
-		return PluginArtifacts.requireUniqueIds(pluginClasses.stream()
+		return pluginClasses.stream()
 			.map(CorePluginRepository::toArtifact)
-			.collect(Collectors.toList()));
+			.collect(Collectors.toList());
 	}
 
 	private static PluginArtifact toArtifact(Class<? extends Plugin> pluginClass)

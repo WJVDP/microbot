@@ -48,7 +48,7 @@ public class MicrobotHubPluginRepository implements PluginRepository
 		{
 			artifacts.add(toArtifact(manifest));
 		}
-		return PluginArtifacts.requireUniqueIds(artifacts);
+		return artifacts;
 	}
 
 	private PluginArtifact toArtifact(MicrobotPluginManifest manifest)
@@ -65,7 +65,8 @@ public class MicrobotHubPluginRepository implements PluginRepository
 		if (artifactFile != null)
 		{
 			builder.artifactFile(artifactFile)
-				.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(artifactFile));
+				.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(artifactFile))
+				.malformedManifest(PluginJarStubReader.hasMalformedManifest(artifactFile));
 		}
 
 		return builder.build();
