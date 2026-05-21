@@ -237,14 +237,16 @@ Status as of 2026-05-21:
 - Added `/bridge/v1/status`, `/bridge/v1/plugins`, and
   `/bridge/v1/plugins/{id}/start|stop` endpoints for runtime status and loaded
   plugin control.
+- Added `/bridge/v1/plugin-artifacts` backed by Plugin Runtime V2 discovery
+  status for Microbot Hub artifacts.
 - The Agent Server remains an automation surface; Bridge V1 is the narrower
   dashboard/UI contract.
 
 Remaining gaps:
 
 - No TypeScript shell scaffold exists yet.
-- Bridge V1 does not yet expose install/update/remove, config schema,
-  plugin-artifact discovery, events, logs, or health metrics.
+- Bridge V1 does not yet expose install/update/remove, config schema, events,
+  logs, or health metrics.
 - Contract snapshots or generated TypeScript types still need to be added.
 
 Recommended first architecture:
@@ -369,6 +371,21 @@ Acceptance criteria:
 
 Purpose: make releases repeatable and understandable for users.
 
+Status as of 2026-05-21:
+
+- Stable release CI now generates and uploads `microbot-<version>.jar.sha256`
+  and `update-stable.json` beside the shaded jar.
+- Added `scripts/generate-release-metadata.sh` for channel metadata generation
+  across `stable`, `beta`, and `nightly`.
+- Documented channel ownership and metadata-forward rollback behavior in
+  `docs/release-workflow.md`.
+
+Remaining gaps:
+
+- Signing is still documented as required but not wired to CI secrets.
+- Beta/nightly workflows still need to publish their channel metadata.
+- Automated release notes are still manual.
+
 Tasks:
 
 - Define release channels:
@@ -402,9 +419,8 @@ Acceptance criteria:
 
 1. Add a Runtime V2 artifact verifier that hashes installed jars before class
    loading and returns structured checksum/signature failures.
-2. Expose `GET /bridge/v1/plugin-artifacts` from `PluginRuntime.discoverStatus()`.
-3. Scaffold the first TypeScript UI shell screen against Bridge V1 status and
+2. Scaffold the first TypeScript UI shell screen against Bridge V1 status and
    plugin list/start/stop endpoints.
-4. Add startup timing and a plugin health registry before optimizing plugin
+3. Add startup timing and a plugin health registry before optimizing plugin
    discovery further.
-5. Add release checksum/update metadata generation to CI.
+4. Add release signing and beta/nightly channel metadata to CI.
