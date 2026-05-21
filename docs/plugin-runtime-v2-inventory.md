@@ -74,8 +74,11 @@ Microbot Hub:
 - Important fields: `internalName`, `displayName`, `version`, `artifactId`,
   `downloadUrl`, `releaseTag`, `minClientVersion`, `sha256`, `url`, `disable`,
   `tags`, and `availableVersions`.
-- Entry classes are not declared in the manifest; jars are scanned and classes
-  are filtered by `@PluginDescriptor`.
+- Accepted migration target: jar-local `runelite_plugin.json`, parsed as
+  `PluginHubManifest.Stub`.
+- Entry classes: `Stub.plugins`.
+- Existing jars without `runelite_plugin.json` are scanned and classes are
+  filtered by `@PluginDescriptor` through the legacy compatibility path.
 
 Core and sideloaded plugins:
 
@@ -100,7 +103,8 @@ Gaps:
 - No unified plugin id model.
 - No single repository abstraction.
 - No single artifact metadata shape.
-- Microbot Hub jars do not declare entry classes outside loaded bytecode.
+- Existing Microbot Hub jars do not consistently declare entry classes outside
+  loaded bytecode.
 - Legacy sideloaded jars have no checksum/signature metadata.
 - Classpath and jar scanning loads classes before metadata is fully known.
 - Duplicate plugin detection differs between managers.
@@ -135,8 +139,6 @@ Gaps:
 
 - Should `PluginArtifact.id` use manifest `internalName`, class simple name, or
   a normalized `source:id` pair during migration?
-- Should Microbot hub jars gain a `microbot_plugin.json` or reuse
-  `runelite_plugin.json`?
 - How strict should local sideload validation be before the compatibility
   adapter exists?
 - Should checksum/signature failure prevent all class loading, including local

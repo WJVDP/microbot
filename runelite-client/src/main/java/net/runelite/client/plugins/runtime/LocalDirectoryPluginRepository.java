@@ -6,10 +6,9 @@ package net.runelite.client.plugins.runtime;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class LocalDirectoryPluginRepository implements PluginRepository
 {
@@ -35,9 +34,12 @@ public class LocalDirectoryPluginRepository implements PluginRepository
 			return Collections.emptyList();
 		}
 
-		return Arrays.stream(files)
-			.map(LocalDirectoryPluginRepository::toArtifact)
-			.collect(Collectors.toList());
+		List<PluginArtifact> artifacts = new ArrayList<>(files.length);
+		for (File file : files)
+		{
+			artifacts.add(toArtifact(file));
+		}
+		return PluginArtifacts.requireUniqueIds(artifacts);
 	}
 
 	private static PluginArtifact toArtifact(File file)
@@ -47,6 +49,7 @@ public class LocalDirectoryPluginRepository implements PluginRepository
 		return PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, id)
 			.displayName(id)
 			.artifactFile(file)
+			.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(file))
 			.build();
 	}
 }

@@ -4,20 +4,28 @@
  */
 package net.runelite.client.plugins.runtime;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest;
 
 public class MicrobotHubPluginRepository implements PluginRepository
 {
 	private final Supplier<List<MicrobotPluginManifest>> manifestSupplier;
+	private final File artifactDirectory;
 
 	public MicrobotHubPluginRepository(Supplier<List<MicrobotPluginManifest>> manifestSupplier)
 	{
+		this(manifestSupplier, null);
+	}
+
+	public MicrobotHubPluginRepository(Supplier<List<MicrobotPluginManifest>> manifestSupplier, File artifactDirectory)
+	{
 		this.manifestSupplier = manifestSupplier;
+		this.artifactDirectory = artifactDirectory;
 	}
 
 	@Override
@@ -35,19 +43,42 @@ public class MicrobotHubPluginRepository implements PluginRepository
 			return Collections.emptyList();
 		}
 
-		return manifests.stream()
-			.map(MicrobotHubPluginRepository::toArtifact)
-			.collect(Collectors.toList());
+		List<PluginArtifact> artifacts = new ArrayList<>(manifests.size());
+		for (MicrobotPluginManifest manifest : manifests)
+		{
+			artifacts.add(toArtifact(manifest));
+		}
+		return PluginArtifacts.requireUniqueIds(artifacts);
 	}
 
-	private static PluginArtifact toArtifact(MicrobotPluginManifest manifest)
+	private PluginArtifact toArtifact(MicrobotPluginManifest manifest)
 	{
-		return PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, manifest.getInternalName())
+		File artifactFile = getArtifactFile(manifest);
+
+		PluginArtifact.Builder builder = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, manifest.getInternalName())
 			.displayName(manifest.getDisplayName())
 			.version(manifest.getVersion())
 			.checksumSha256(manifest.getSha256())
 			.minClientVersion(manifest.getMinClientVersion())
-			.disabled(manifest.isDisable())
-			.build();
+			.disabled(manifest.isDisable());
+
+		if (artifactFile != null)
+		{
+			builder.artifactFile(artifactFile)
+				.entryClasses(PluginJarStubReader.readEntryClassesOrEmpty(artifactFile));
+		}
+
+		return builder.build();
+	}
+
+	private File getArtifactFile(MicrobotPluginManifest manifest)
+	{
+		if (artifactDirectory == null)
+		{
+			return null;
+		}
+
+		File artifactFile = new File(artifactDirectory, manifest.getInternalName() + ".jar");
+		return artifactFile.isFile() ? artifactFile : null;
 	}
 }
