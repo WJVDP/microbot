@@ -142,6 +142,8 @@ Verification:
 **Why third:** the UI shell should consume a stable contract rather than bind to
 Swing panels or automation endpoints.
 
+Status: implemented in the current Bridge V1 workspace slice.
+
 Requirements:
 
 - Add Bridge V1 endpoints for plugin install, update, and remove.
