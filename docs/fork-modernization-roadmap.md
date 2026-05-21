@@ -80,6 +80,10 @@ Status as of 2026-05-19:
 - Added read-only Plugin Runtime V2 artifact/repository scaffolding under
   `net.runelite.client.plugins.runtime`, with manifest-backed metadata
   discovery tests and shared validation scaffolding.
+- Decided that Microbot Hub jars should reuse RuneLite's jar-local
+  `runelite_plugin.json` stub for entry classes. Microbot-specific hub,
+  compatibility, permission, and capability metadata remains in Microbot
+  manifests or a future extension only when RuneLite's stub cannot represent it.
 
 Tasks:
 
@@ -143,6 +147,30 @@ Acceptance criteria:
 
 Purpose: replace fragmented plugin loading with one coherent model.
 
+Status as of 2026-05-21:
+
+- Inventory and manifest-format decision are documented in
+  `docs/plugin-runtime-v2-inventory.md` and
+  `docs/decisions/adr-0005-plugin-jar-entry-manifest.md`.
+- Read-only repository adapters exist for core, RuneLite Hub, Microbot Hub, and
+  local-directory plugin sources.
+- Microbot Hub and local-directory artifacts read jar-local
+  `runelite_plugin.json` entry classes without loading plugin classes.
+- `PluginRuntime.discoverStatus()` returns structured artifact statuses for
+  compatibility, disabled, duplicate-id, and missing-entry-class failures.
+- `MicrobotPluginManager` now reuses the shared artifact validator for
+  descriptor and manifest checks, and install is blocked for disabled or
+  incompatible Microbot Hub manifests before download/load.
+
+Remaining gaps:
+
+- Runtime V2 is not yet the lifecycle backend for install, verify, load, start,
+  stop, unload, or health reporting.
+- RuneLite Hub metadata still needs artifact-file-aware stub reading for entry
+  classes.
+- Checksum/signature verification is not centralized in Runtime V2.
+- Existing classpath and whole-jar scanning remain as compatibility paths.
+
 Proposed abstractions:
 
 ```text
@@ -201,6 +229,24 @@ Acceptance criteria:
 
 Purpose: build a cleaner UI without destabilizing the RuneLite game canvas.
 
+Status as of 2026-05-21:
+
+- Added `docs/bridge-api-v1.md` as the first versioned local bridge contract.
+- Reused the existing Agent Server localhost/UDS transport and `X-Agent-Token`
+  guard for the UI-facing bridge.
+- Added `/bridge/v1/status`, `/bridge/v1/plugins`, and
+  `/bridge/v1/plugins/{id}/start|stop` endpoints for runtime status and loaded
+  plugin control.
+- The Agent Server remains an automation surface; Bridge V1 is the narrower
+  dashboard/UI contract.
+
+Remaining gaps:
+
+- No TypeScript shell scaffold exists yet.
+- Bridge V1 does not yet expose install/update/remove, config schema,
+  plugin-artifact discovery, events, logs, or health metrics.
+- Contract snapshots or generated TypeScript types still need to be added.
+
 Recommended first architecture:
 
 - Keep the OSRS game canvas in the Java client window.
@@ -232,6 +278,13 @@ Acceptance criteria:
 ## Phase 5: Move Non-Core Work Away From Java
 
 Purpose: reduce Java surface area where it is not required by RuneLite.
+
+Status as of 2026-05-21:
+
+- Phase 5 has a first boundary but not a migrated subsystem: Bridge V1 defines
+  the Java-to-non-Java contract that a TypeScript dashboard can consume.
+- The first practical migration target remains plugin marketplace/dashboard UI;
+  Java continues to own actual plugin lifecycle and game runtime behavior.
 
 Good candidates:
 
@@ -347,9 +400,11 @@ Acceptance criteria:
 
 ## Immediate Next Actions
 
-1. Wire `PluginArtifactValidator` to the existing Microbot disabled and
-   `minClientVersion` checks while preserving current load order.
-2. Add duplicate-id and invalid-metadata tests around `PluginArtifact`
-   discovery.
-3. Decide whether Microbot hub jars should declare entry classes through
-   `microbot_plugin.json` or reuse `runelite_plugin.json`.
+1. Add a Runtime V2 artifact verifier that hashes installed jars before class
+   loading and returns structured checksum/signature failures.
+2. Expose `GET /bridge/v1/plugin-artifacts` from `PluginRuntime.discoverStatus()`.
+3. Scaffold the first TypeScript UI shell screen against Bridge V1 status and
+   plugin list/start/stop endpoints.
+4. Add startup timing and a plugin health registry before optimizing plugin
+   discovery further.
+5. Add release checksum/update metadata generation to CI.
