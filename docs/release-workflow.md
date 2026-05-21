@@ -38,9 +38,29 @@ For changes that touch launcher, packaging, or dependency metadata, also run:
 
 - The shaded client jar is produced by `:client:shadowJar`.
 - Release packaging is produced by `:client:assemble`.
-- Checksums and signing are required before publishing a public release.
+- Stable releases publish `microbot-<version>.jar`,
+  `microbot-<version>.jar.sha256`, and `update-stable.json`.
+- Generate checksum and update metadata locally with:
+
+```bash
+scripts/generate-release-metadata.sh stable <version> runelite-client/build/libs/microbot-<version>.jar https://files.microbot.cloud/releases/microbot/stable
+```
+
+- Signing is required before publishing a public release.
 - Release notes must include upstream RuneLite and Microbot merge points when
   either integration branch changed since the prior release.
+
+## Release Channels
+
+- `stable`: built from `main` by `.github/workflows/release.yml`.
+- `beta`: reserved for release candidates; publish `update-beta.json` before
+  exposing to end users.
+- `nightly`: built by nightly workflows and should publish
+  `update-nightly.json`.
+
+Rollback behavior is metadata-forward: publish a newer channel metadata file
+that points back to the previous known-good artifact and checksum. Do not
+rewrite or delete published release tags.
 
 ## Tagging
 

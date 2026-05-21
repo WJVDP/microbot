@@ -45,6 +45,14 @@ jobs:
           DEST=runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
           cp "$SRC" "$DEST"
 
+      - name: Generate release metadata
+        run: |
+          scripts/generate-release-metadata.sh \
+            stable \
+            "${{ steps.version.outputs.version }}" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar" \
+            "https://files.microbot.cloud/releases/microbot/stable"
+
       - name: Create Release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
@@ -54,6 +62,8 @@ jobs:
           title: "Release ${{ steps.version.outputs.version }}"
           files: |
             /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.sha256
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-stable.json
 
       - name: Upload Jar to Hetzner
         uses: appleboy/scp-action@v0.1.7
@@ -62,6 +72,16 @@ jobs:
           username: root
           key: ${{ secrets.PROD_SSH_KEY }}
           source: runelite-client/build/libs/microbot-*.jar
+          target: /var/www/files/releases/microbot/stable/
+          strip_components: 3
+
+      - name: Upload release metadata to Hetzner
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: root
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: runelite-client/build/libs/microbot-*.jar.sha256,runelite-client/build/libs/update-stable.json
           target: /var/www/files/releases/microbot/stable/
           strip_components: 3
 
