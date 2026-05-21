@@ -45,10 +45,12 @@ explicit, testable, and safe to evolve without breaking RuneLite compatibility.
 
 ## Ordered Scope
 
-### Milestone 1: Runtime V2 Verification Backbone
+### Milestone 1: Runtime V2 Verification Backbone - Done
 
 **Why first:** verification must exist before Runtime V2 can safely become a
 loading or UI source of truth.
+
+Status: completed in `113493715d Add Runtime V2 artifact verification`.
 
 Requirements:
 
@@ -81,6 +83,11 @@ Implementation policy:
 - Signature metadata is carried on `PluginArtifact` and checked through the
   `PluginArtifactSignatureVerifier` extension point. The default verifier does
   not enforce a trust model until the community plugin signing model is decided.
+
+Verification:
+
+- `./gradlew :client:runUnitTests --tests net.runelite.client.plugins.runtime.PluginRuntimeTest --tests net.runelite.client.plugins.runtime.PluginRepositoryTest`
+- `./gradlew :client:check`
 
 ### Milestone 2: Complete Artifact Metadata Coverage
 
