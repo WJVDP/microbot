@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 
 public class PluginRuntime
 {
@@ -20,6 +22,8 @@ public class PluginRuntime
 	private final List<PluginRepository> repositories;
 	private final PluginArtifactValidator validator;
 	private final PluginArtifactVerifier verifier;
+	private final PluginHealthRegistry pluginHealthRegistry;
+	private final StartupTimingRegistry startupTimingRegistry;
 
 	public PluginRuntime(Collection<PluginRepository> repositories)
 	{
@@ -33,9 +37,30 @@ public class PluginRuntime
 
 	public PluginRuntime(Collection<PluginRepository> repositories, PluginArtifactValidator validator, PluginArtifactVerifier verifier)
 	{
+		this(repositories, validator, verifier, StartupTimingRegistry.getDefault());
+	}
+
+	public PluginRuntime(
+		Collection<PluginRepository> repositories,
+		PluginArtifactValidator validator,
+		PluginArtifactVerifier verifier,
+		StartupTimingRegistry startupTimingRegistry)
+	{
+		this(repositories, validator, verifier, PluginHealthRegistry.getDefault(), startupTimingRegistry);
+	}
+
+	public PluginRuntime(
+		Collection<PluginRepository> repositories,
+		PluginArtifactValidator validator,
+		PluginArtifactVerifier verifier,
+		PluginHealthRegistry pluginHealthRegistry,
+		StartupTimingRegistry startupTimingRegistry)
+	{
 		this.repositories = Collections.unmodifiableList(new ArrayList<>(Objects.requireNonNull(repositories, "repositories")));
 		this.validator = Objects.requireNonNull(validator, "validator");
 		this.verifier = Objects.requireNonNull(verifier, "verifier");
+		this.pluginHealthRegistry = Objects.requireNonNull(pluginHealthRegistry, "pluginHealthRegistry");
+		this.startupTimingRegistry = Objects.requireNonNull(startupTimingRegistry, "startupTimingRegistry");
 	}
 
 	public List<PluginRepository> getRepositories()
@@ -48,7 +73,18 @@ public class PluginRuntime
 		List<PluginArtifact> artifacts = new ArrayList<>();
 		for (PluginRepository repository : repositories)
 		{
-			artifacts.addAll(repository.discover());
+			try
+			{
+				artifacts.addAll(startupTimingRegistry.time("plugin.discovery", repository.getSource().name(), repository::discover));
+			}
+			catch (IOException ex)
+			{
+				throw ex;
+			}
+			catch (Exception ex)
+			{
+				throw new IOException(ex);
+			}
 		}
 		return Collections.unmodifiableList(artifacts);
 	}
@@ -71,6 +107,7 @@ public class PluginRuntime
 			{
 				errors.add(DUPLICATE_ID_ERROR_PREFIX + artifact.getId());
 			}
+			pluginHealthRegistry.setDisabledOrBlockedReason(artifact.getId(), errors.isEmpty() ? null : String.join("; ", errors));
 			statuses.add(new PluginRuntimeArtifactStatus(artifact, errors));
 		}
 		return new PluginRuntimeDiscoveryResult(statuses);

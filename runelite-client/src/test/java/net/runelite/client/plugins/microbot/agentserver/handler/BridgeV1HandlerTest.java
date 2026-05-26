@@ -14,7 +14,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigDescriptor;
 import net.runelite.client.config.ConfigGroup;
@@ -236,6 +238,12 @@ public class BridgeV1HandlerTest
 		assertTrue(health.get("configManagerAvailable").getAsBoolean());
 		assertTrue(health.get("artifactStatusAvailable").getAsBoolean());
 		assertEquals(1, health.get("artifactCount").getAsInt());
+		assertEquals(1, health.getAsJsonObject("pluginHealth").get("count").getAsInt());
+		assertEquals(1, health.getAsJsonObject("startupTiming").get("count").getAsInt());
+
+		JsonObject timing = requestJson("GET", "/bridge/v1/startup-timing", null);
+		assertEquals(1, timing.get("count").getAsInt());
+		assertEquals("config.load", timing.getAsJsonArray("timings").get(0).getAsJsonObject().get("stage").getAsString());
 	}
 
 	private JsonObject requestJson(String method, String path, String body) throws Exception
@@ -383,6 +391,39 @@ public class BridgeV1HandlerTest
 		{
 			commands.add("remove:" + id);
 			return "test-artifact".equals(id);
+		}
+
+		@Override
+		public Map<String, Object> getPluginHealthStatus()
+		{
+			Map<String, Object> plugin = new LinkedHashMap<>();
+			plugin.put("pluginId", TestPlugin.class.getName());
+			plugin.put("exceptionCount", 0);
+			plugin.put("slowCallCount", 1);
+			plugin.put("lastFailure", null);
+			plugin.put("disabledOrBlockedReason", null);
+
+			Map<String, Object> status = new LinkedHashMap<>();
+			status.put("slowCallThresholdMs", 50);
+			status.put("count", 1);
+			status.put("plugins", Collections.singletonList(plugin));
+			return status;
+		}
+
+		@Override
+		public Map<String, Object> getStartupTimingStatus()
+		{
+			Map<String, Object> timing = new LinkedHashMap<>();
+			timing.put("time", "2026-05-21T00:00:00Z");
+			timing.put("stage", "config.load");
+			timing.put("detail", "test");
+			timing.put("durationMs", 2);
+			timing.put("durationNanos", 2_000_000);
+
+			Map<String, Object> status = new LinkedHashMap<>();
+			status.put("count", 1);
+			status.put("timings", Collections.singletonList(timing));
+			return status;
 		}
 
 		@Override

@@ -32,6 +32,8 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
@@ -96,6 +98,12 @@ public class BridgeV1Handler extends AgentHandler
 		if ("/runtime-health".equals(subPath))
 		{
 			handleRuntimeHealth(exchange);
+			return;
+		}
+
+		if ("/startup-timing".equals(subPath))
+		{
+			handleStartupTiming(exchange);
 			return;
 		}
 
@@ -493,6 +501,8 @@ public class BridgeV1Handler extends AgentHandler
 		response.put("pluginManagerAvailable", pluginManager != null);
 		response.put("configManagerAvailable", services.getConfigManager() != null);
 		response.put("pluginCount", pluginManager == null ? 0 : pluginManager.getPlugins().size());
+		response.put("pluginHealth", services.getPluginHealthStatus());
+		response.put("startupTiming", services.getStartupTimingStatus());
 
 		try
 		{
@@ -508,6 +518,21 @@ public class BridgeV1Handler extends AgentHandler
 		}
 
 		sendJson(exchange, 200, response);
+	}
+
+	private void handleStartupTiming(HttpExchange exchange) throws IOException
+	{
+		try
+		{
+			requireGet(exchange);
+		}
+		catch (HttpMethodException ex)
+		{
+			sendJson(exchange, 405, errorResponse(ex.getMessage()));
+			return;
+		}
+
+		sendJson(exchange, 200, services.getStartupTimingStatus());
 	}
 
 	private static Map<String, Object> toPluginDto(PluginManager pluginManager, Plugin plugin)
@@ -780,6 +805,16 @@ public class BridgeV1Handler extends AgentHandler
 		boolean updatePluginArtifact(String id, String version);
 
 		boolean removePluginArtifact(String id);
+
+		default Map<String, Object> getPluginHealthStatus()
+		{
+			return PluginHealthRegistry.getDefault().status();
+		}
+
+		default Map<String, Object> getStartupTimingStatus()
+		{
+			return StartupTimingRegistry.getDefault().status();
+		}
 
 		default Instant now()
 		{

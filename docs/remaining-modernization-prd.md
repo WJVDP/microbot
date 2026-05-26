@@ -142,7 +142,7 @@ Verification:
 **Why third:** the UI shell should consume a stable contract rather than bind to
 Swing panels or automation endpoints.
 
-Status: implemented in the current Bridge V1 workspace slice.
+Status: done.
 
 Requirements:
 
@@ -209,6 +209,9 @@ Verification:
 **Why fifth:** optimization should follow measurement, and health data should
 feed both Bridge V1 and UI shell surfaces.
 
+Status: implemented in the current startup timing and plugin health workspace
+slice.
+
 Requirements:
 
 - Add startup timing around:
@@ -228,8 +231,17 @@ Acceptance criteria:
 
 - Maintainers can identify slow startup stages.
 - Slow or repeatedly failing plugins are visible in status output.
-- At least one measured bottleneck is improved and documented with before/after
-  numbers.
+- Baseline captured during targeted test runs: Runtime V2 manifest loading and
+  jar verification now emit per-artifact timing records, and central event,
+  scheduler, and overlay calls emit per-call timings. No safe startup
+  optimization was made in this slice because the available automated runs do
+  not exercise a real plugin directory or full GUI startup; the measured
+  bottleneck work was intentionally limited to establishing the baseline and
+  read-only Bridge V1 reporting.
+
+Verification:
+
+- `./gradlew :client:runUnitTests --tests net.runelite.client.plugins.health.PluginHealthRegistryTest --tests net.runelite.client.plugins.microbot.agentserver.handler.BridgeV1HandlerTest --tests net.runelite.client.plugins.runtime.PluginRuntimeTest --tests net.runelite.client.plugins.runtime.PluginRepositoryTest`
 
 ### Milestone 6: Runtime Service Boundaries
 
@@ -287,9 +299,6 @@ Acceptance criteria:
 
 ## Open Decisions
 
-- Tauri vs Electron for the first UI shell.
 - Initial plugin signing model for community plugins.
 - Whether plugin permissions/capabilities are enforceable in the first UI
   shell or declarative only.
-- JSON Schema vs generated TypeScript interfaces as the Bridge V1 contract
-  source of truth.

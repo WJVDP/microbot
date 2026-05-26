@@ -136,10 +136,45 @@ export interface BridgeRuntimeHealth {
   pluginManagerAvailable: boolean;
   configManagerAvailable: boolean;
   pluginCount: number;
+  pluginHealth: BridgePluginHealthStatus;
+  startupTiming: BridgeStartupTimingStatus;
   artifactStatusAvailable: boolean;
   artifactCount?: number;
   artifactErrors?: boolean;
   artifactError?: string;
+}
+
+export interface BridgePluginHealth {
+  pluginId: string;
+  exceptionCount: number;
+  slowCallCount: number;
+  totalCallCount: number;
+  totalDurationMs: number;
+  maxDurationMs: number;
+  lastOperation: string | null;
+  lastFailure: string | null;
+  lastFailureStackTrace: string | null;
+  lastFailureTime: string | null;
+  disabledOrBlockedReason: string | null;
+}
+
+export interface BridgePluginHealthStatus {
+  slowCallThresholdMs: number;
+  count: number;
+  plugins: BridgePluginHealth[];
+}
+
+export interface BridgeStartupTiming {
+  time: string;
+  stage: string;
+  detail: string | null;
+  durationMs: number;
+  durationNanos: number;
+}
+
+export interface BridgeStartupTimingStatus {
+  count: number;
+  timings: BridgeStartupTiming[];
 }
 
 export interface BridgeError {

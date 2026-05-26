@@ -45,6 +45,8 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.PluginChanged;
 import net.runelite.client.events.ProfileChanged;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.task.ScheduledMethod;
 import net.runelite.client.task.Scheduler;
@@ -81,6 +83,8 @@ public class PluginManager {
     private final Scheduler scheduler;
     private final ConfigManager configManager;
     private final Provider<GameEventManager> sceneTileManager;
+    private final PluginHealthRegistry pluginHealthRegistry;
+    private final StartupTimingRegistry startupTimingRegistry;
     private final List<Plugin> plugins = new CopyOnWriteArrayList<>();
     @Getter
     private final List<Plugin> activePlugins = new CopyOnWriteArrayList<>();
@@ -89,7 +93,6 @@ public class PluginManager {
         plugins.add(plugin);
     }
 
-    @Inject
     @VisibleForTesting
     PluginManager(
             @Named("safeMode") final boolean safeMode,
@@ -97,11 +100,26 @@ public class PluginManager {
             final Scheduler scheduler,
             final ConfigManager configManager,
             final Provider<GameEventManager> sceneTileManager) {
+        this(safeMode, eventBus, scheduler, configManager, sceneTileManager,
+            PluginHealthRegistry.getDefault(), StartupTimingRegistry.getDefault());
+    }
+
+    @Inject
+    PluginManager(
+            @Named("safeMode") final boolean safeMode,
+            final EventBus eventBus,
+            final Scheduler scheduler,
+            final ConfigManager configManager,
+            final Provider<GameEventManager> sceneTileManager,
+            final PluginHealthRegistry pluginHealthRegistry,
+            final StartupTimingRegistry startupTimingRegistry) {
         this.safeMode = safeMode;
         this.eventBus = eventBus;
         this.scheduler = scheduler;
         this.configManager = configManager;
         this.sceneTileManager = sceneTileManager;
+        this.pluginHealthRegistry = pluginHealthRegistry;
+        this.startupTimingRegistry = startupTimingRegistry;
     }
 
     @Subscribe
@@ -170,6 +188,7 @@ public class PluginManager {
     }
 
     public void loadDefaultPluginConfiguration(Collection<Plugin> plugins) {
+        long start = System.nanoTime();
         try {
             for (Config config : getPluginConfigProxies(plugins)) {
                 configManager.setDefaultConfiguration(config, false);
@@ -178,6 +197,8 @@ public class PluginManager {
             throw e;
         } catch (Throwable ex) {
             log.error("Unable to reset plugin configuration", ex);
+        } finally {
+            startupTimingRegistry.record("plugin.default-config", plugins == null ? "all" : "selected", System.nanoTime() - start);
         }
     }
 
@@ -236,7 +257,14 @@ public class PluginManager {
      */
     public void loadCoreRunelitePlugins() throws IOException, PluginInstantiationException {
         SplashScreen.stage(.59, null, "Loading core RuneLite plugins");
-        ClassPath classPath = ClassPath.from(getClass().getClassLoader());
+        ClassPath classPath;
+        try {
+            classPath = startupTimingRegistry.time("classpath.discovery", "core-runelite", () -> ClassPath.from(getClass().getClassLoader()));
+        } catch (IOException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        }
 
         List<Class<?>> plugins = classPath.getTopLevelClassesRecursive(PLUGIN_PACKAGE).stream()
                 .map(ClassInfo::load)
@@ -265,7 +293,14 @@ public class PluginManager {
 
     public void loadCorePlugins() throws IOException, PluginInstantiationException {
         SplashScreen.stage(.59, null, "Loading plugins");
-        ClassPath classPath = ClassPath.from(getClass().getClassLoader());
+        ClassPath classPath;
+        try {
+            classPath = startupTimingRegistry.time("classpath.discovery", "core-all", () -> ClassPath.from(getClass().getClassLoader()));
+        } catch (IOException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        }
 
         List<Class<?>> plugins = classPath.getTopLevelClassesRecursive(PLUGIN_PACKAGE).stream()
                 .map(ClassInfo::load)
@@ -288,7 +323,8 @@ public class PluginManager {
                 try {
                     ClassLoader classLoader = new PluginClassLoader(f, getClass().getClassLoader());
 
-                    List<Class<?>> plugins = ClassPath.from(classLoader)
+                    ClassPath classPath = startupTimingRegistry.time("classpath.discovery", "sideload:" + f.getName(), () -> ClassPath.from(classLoader));
+                    List<Class<?>> plugins = classPath
                             .getAllClasses()
                             .stream()
                             .map(ClassInfo::load)
@@ -296,6 +332,8 @@ public class PluginManager {
 
                     loadPlugins(plugins, null);
                 } catch (PluginInstantiationException | IOException ex) {
+                    log.error("error sideloading plugin", ex);
+                } catch (Exception ex) {
                     log.error("error sideloading plugin", ex);
                 }
             }
@@ -325,6 +363,7 @@ public class PluginManager {
 			if (safeMode && !pluginDescriptor.loadInSafeMode())
 			{
 				log.debug("Disabling {} due to safe mode", clazz);
+				pluginHealthRegistry.setDisabledOrBlockedReason(clazz.getName(), "safe mode");
 				// also disable the plugin from autostarting later
 				configManager.setConfiguration(RuneLiteConfig.GROUP_NAME,
 					(Strings.isNullOrEmpty(pluginDescriptor.configName()) ? clazz.getSimpleName() : pluginDescriptor.configName()).toLowerCase(),
@@ -356,12 +395,16 @@ public class PluginManager {
         List<Plugin> newPlugins = new ArrayList<>();
         for (Class<? extends Plugin> pluginClazz : sortedPlugins) {
             Plugin plugin;
+            long start = System.nanoTime();
             try {
                 plugin = instantiate(this.plugins, (Class<Plugin>) pluginClazz);
                 newPlugins.add(plugin);
                 add(plugin);
             } catch (PluginInstantiationException ex) {
+                pluginHealthRegistry.recordFailure(pluginClazz.getName(), "plugin-instantiation", ex);
                 log.error("Error instantiating plugin!", ex);
+            } finally {
+                startupTimingRegistry.record("plugin.instantiation", pluginClazz.getName(), System.nanoTime() - start);
             }
 
             loaded++;
@@ -378,6 +421,9 @@ public class PluginManager {
         assert SwingUtilities.isEventDispatchThread();
 
         if (activePlugins.contains(plugin) || !isPluginEnabled(plugin)) {
+            if (!isPluginEnabled(plugin)) {
+                pluginHealthRegistry.setDisabledOrBlockedReason(plugin.getClass().getName(), "disabled");
+            }
             return false;
         }
 
@@ -393,8 +439,11 @@ public class PluginManager {
 
         activePlugins.add(plugin);
 
+        long startupStart = System.nanoTime();
         try {
             plugin.startUp();
+            pluginHealthRegistry.recordCall(plugin.getClass().getName(), "plugin.startUp", System.nanoTime() - startupStart, null);
+            pluginHealthRegistry.setDisabledOrBlockedReason(plugin.getClass().getName(), null);
 
             log.debug("Plugin {} is now running", plugin.getClass().getSimpleName());
             if (sceneTileManager != null) {
@@ -410,6 +459,7 @@ public class PluginManager {
         } catch (ThreadDeath e) {
             throw e;
         } catch (Throwable ex) {
+            pluginHealthRegistry.recordFailure(plugin.getClass().getName(), "plugin.startUp", ex);
             // stop the plugin and fire the change event to update the plugin list panel
             try {
                 stopPlugin(plugin);
@@ -433,12 +483,15 @@ public class PluginManager {
         unschedule(plugin);
         eventBus.unregister(plugin);
 
+        long shutdownStart = System.nanoTime();
         try {
             plugin.shutDown();
+            pluginHealthRegistry.recordCall(plugin.getClass().getName(), "plugin.shutDown", System.nanoTime() - shutdownStart, null);
 
             log.debug("Plugin {} is now stopped", plugin.getClass().getSimpleName());
             eventBus.post(new PluginChanged(plugin, false));
         } catch (Exception ex) {
+            pluginHealthRegistry.recordFailure(plugin.getClass().getName(), "plugin.shutDown", ex);
             throw new PluginInstantiationException(ex);
         }
 
@@ -457,6 +510,7 @@ public class PluginManager {
         final PluginDescriptor pluginDescriptor = plugin.getClass().getAnnotation(PluginDescriptor.class);
         final String keyName = Strings.isNullOrEmpty(pluginDescriptor.configName()) ? plugin.getClass().getSimpleName() : pluginDescriptor.configName();
         configManager.setConfiguration(RuneLiteConfig.GROUP_NAME, keyName.toLowerCase(), String.valueOf(enabled));
+        pluginHealthRegistry.setDisabledOrBlockedReason(plugin.getClass().getName(), enabled ? null : "disabled");
 
         if (enabled) {
             List<Plugin> conflicts = conflictsForPlugin(plugin);

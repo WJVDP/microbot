@@ -19,6 +19,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import net.runelite.client.externalplugins.PluginHubManifest;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 
 final class PluginJarStubReader
 {
@@ -32,6 +33,7 @@ final class PluginJarStubReader
 
 	static List<String> readEntryClasses(File jarFile) throws IOException
 	{
+		long start = System.nanoTime();
 		try (JarFile jar = new JarFile(jarFile))
 		{
 			JarEntry entry = jar.getJarEntry(STUB_PATH);
@@ -55,6 +57,10 @@ final class PluginJarStubReader
 					.filter(plugin -> !plugin.isEmpty())
 					.collect(Collectors.toList());
 			}
+		}
+		finally
+		{
+			StartupTimingRegistry.getDefault().record("plugin.manifest-loading", jarFile.getName(), System.nanoTime() - start);
 		}
 	}
 

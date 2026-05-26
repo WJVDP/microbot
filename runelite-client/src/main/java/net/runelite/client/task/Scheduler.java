@@ -35,6 +35,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 
 @Singleton
 @Slf4j
@@ -44,6 +47,10 @@ public class Scheduler
 
 	@Inject
 	ScheduledExecutorService executor;
+	@Inject
+	PluginHealthRegistry pluginHealthRegistry;
+	@Inject
+	StartupTimingRegistry startupTimingRegistry;
 
 	public void addScheduledMethod(ScheduledMethod method)
 	{
@@ -93,6 +100,8 @@ public class Scheduler
 
 	private void run(ScheduledMethod scheduledMethod)
 	{
+		long start = System.nanoTime();
+		Exception failure = null;
 		try
 		{
 			Runnable lambda = scheduledMethod.getLambda();
@@ -108,11 +117,35 @@ public class Scheduler
 		}
 		catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex)
 		{
+			failure = ex;
 			log.warn("error invoking scheduled task", ex);
 		}
 		catch (Exception ex)
 		{
+			failure = ex;
 			log.warn("error during scheduled task", ex);
 		}
+		finally
+		{
+			long durationNanos = System.nanoTime() - start;
+			String detail = scheduledMethod.getObject().getClass().getName() + "#" + scheduledMethod.getMethod().getName();
+			StartupTimingRegistry timingRegistry = startupTimingRegistry == null ? StartupTimingRegistry.getDefault() : startupTimingRegistry;
+			PluginHealthRegistry healthRegistry = pluginHealthRegistry == null ? PluginHealthRegistry.getDefault() : pluginHealthRegistry;
+			timingRegistry.record("scheduled-task", detail, durationNanos);
+			String pluginId = pluginId(scheduledMethod.getObject());
+			if (pluginId != null)
+			{
+				healthRegistry.recordCall(pluginId, detail, durationNanos, failure);
+			}
+		}
+	}
+
+	private static String pluginId(Object object)
+	{
+		if (object instanceof Plugin)
+		{
+			return object.getClass().getName();
+		}
+		return null;
 	}
 }

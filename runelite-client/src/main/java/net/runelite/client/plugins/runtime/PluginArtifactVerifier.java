@@ -14,6 +14,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 
 public class PluginArtifactVerifier
 {
@@ -38,38 +39,46 @@ public class PluginArtifactVerifier
 
 	public PluginArtifactValidationResult verify(PluginArtifact artifact)
 	{
+		long start = System.nanoTime();
 		List<String> errors = new ArrayList<>();
-		if (artifact.hasMalformedManifest())
+		try
 		{
-			errors.add(MALFORMED_MANIFEST_ERROR);
-		}
+			if (artifact.hasMalformedManifest())
+			{
+				errors.add(MALFORMED_MANIFEST_ERROR);
+			}
 
-		File artifactFile = artifact.getArtifactFile();
-		if (artifact.getChecksumSha256() != null && (artifactFile == null || !artifactFile.isFile()))
+			File artifactFile = artifact.getArtifactFile();
+			if (artifact.getChecksumSha256() != null && (artifactFile == null || !artifactFile.isFile()))
+			{
+				errors.add(MISSING_ARTIFACT_FILE_ERROR);
+				return PluginArtifactValidationResult.invalid(errors);
+			}
+
+			if (artifactFile != null && !artifactFile.isFile())
+			{
+				errors.add(MISSING_ARTIFACT_FILE_ERROR);
+				return PluginArtifactValidationResult.invalid(errors);
+			}
+
+			if (artifactFile != null && artifact.getChecksumSha256() != null)
+			{
+				verifyChecksum(artifact, artifactFile, errors);
+			}
+
+			if (artifactFile != null && artifact.getSignature() != null)
+			{
+				verifySignature(artifact, artifactFile, errors);
+			}
+
+			return errors.isEmpty()
+				? PluginArtifactValidationResult.valid()
+				: PluginArtifactValidationResult.invalid(errors);
+		}
+		finally
 		{
-			errors.add(MISSING_ARTIFACT_FILE_ERROR);
-			return PluginArtifactValidationResult.invalid(errors);
+			StartupTimingRegistry.getDefault().record("plugin.jar-verification", artifact.getId(), System.nanoTime() - start);
 		}
-
-		if (artifactFile != null && !artifactFile.isFile())
-		{
-			errors.add(MISSING_ARTIFACT_FILE_ERROR);
-			return PluginArtifactValidationResult.invalid(errors);
-		}
-
-		if (artifactFile != null && artifact.getChecksumSha256() != null)
-		{
-			verifyChecksum(artifact, artifactFile, errors);
-		}
-
-		if (artifactFile != null && artifact.getSignature() != null)
-		{
-			verifySignature(artifact, artifactFile, errors);
-		}
-
-		return errors.isEmpty()
-			? PluginArtifactValidationResult.valid()
-			: PluginArtifactValidationResult.invalid(errors);
 	}
 
 	private static void verifyChecksum(PluginArtifact artifact, File artifactFile, List<String> errors)

@@ -216,11 +216,47 @@ Returns a compact read-only runtime health probe for shell status views.
   "pluginManagerAvailable": true,
   "configManagerAvailable": true,
   "pluginCount": 120,
+  "pluginHealth": {
+    "slowCallThresholdMs": 50,
+    "count": 1,
+    "plugins": [
+      {
+        "pluginId": "net.runelite.client.plugins.example.ExamplePlugin",
+        "exceptionCount": 0,
+        "slowCallCount": 1,
+        "totalCallCount": 42,
+        "totalDurationMs": 125,
+        "maxDurationMs": 53,
+        "lastOperation": "overlay-render",
+        "lastFailure": null,
+        "lastFailureStackTrace": null,
+        "lastFailureTime": null,
+        "disabledOrBlockedReason": null
+      }
+    ]
+  },
+  "startupTiming": {
+    "count": 1,
+    "timings": [
+      {
+        "time": "2026-05-21T00:00:00Z",
+        "stage": "config.load",
+        "detail": "user configuration",
+        "durationMs": 17,
+        "durationNanos": 17000000
+      }
+    ]
+  },
   "artifactStatusAvailable": true,
   "artifactCount": 1,
   "artifactErrors": false
 }
 ```
+
+### `GET /bridge/v1/startup-timing`
+
+Returns the same startup/call timing object embedded in runtime health, without
+the artifact and plugin-health summary.
 
 ## Contract Artifacts
 
