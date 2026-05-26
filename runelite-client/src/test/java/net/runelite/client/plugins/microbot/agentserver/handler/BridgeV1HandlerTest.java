@@ -26,6 +26,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.microbot.services.BridgeApiService;
 import net.runelite.client.plugins.runtime.PluginArtifact;
 import net.runelite.client.plugins.runtime.PluginArtifactSource;
 import net.runelite.client.plugins.runtime.PluginRepository;
@@ -321,7 +322,7 @@ public class BridgeV1HandlerTest
 		}
 	}
 
-	private static final class FakeBridgeServices implements BridgeV1Handler.BridgeServices
+	private static final class FakeBridgeServices implements BridgeApiService
 	{
 		private final PluginManager pluginManager;
 		private final ConfigManager configManager;

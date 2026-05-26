@@ -248,6 +248,8 @@ Verification:
 **Why sixth:** service boundaries should be introduced after the runtime and
 bridge contracts show the shape of the real dependencies.
 
+Status: implemented in the runtime service boundaries workspace slice.
+
 Requirements:
 
 - Define service interfaces for:
@@ -266,6 +268,10 @@ Acceptance criteria:
 - New code can depend on injectable services instead of static `Microbot`.
 - Existing scripts continue to compile and run.
 - Migration guidance covers common old-to-new call patterns.
+
+Verification:
+
+- `./gradlew :client:runUnitTests --tests net.runelite.client.plugins.microbot.services.PluginRuntimeServiceTest --tests net.runelite.client.plugins.microbot.services.DefaultScriptLifecycleServiceTest --tests net.runelite.client.plugins.microbot.services.DefaultTelemetryUpdateServiceTest --tests net.runelite.client.plugins.microbot.agentserver.handler.BridgeV1HandlerTest --tests net.runelite.client.plugins.runtime.PluginRuntimeTest --tests net.runelite.client.plugins.runtime.PluginRepositoryTest`
 
 ### Milestone 7: Release Distribution Hardening
 

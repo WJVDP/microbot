@@ -14,8 +14,9 @@ import java.util.Map;
 import java.util.Objects;
 import net.runelite.client.plugins.health.PluginHealthRegistry;
 import net.runelite.client.plugins.health.StartupTimingRegistry;
+import net.runelite.client.plugins.microbot.services.PluginRuntimeService;
 
-public class PluginRuntime
+public class PluginRuntime implements PluginRuntimeService
 {
 	public static final String DUPLICATE_ID_ERROR_PREFIX = "Duplicate plugin artifact id: ";
 

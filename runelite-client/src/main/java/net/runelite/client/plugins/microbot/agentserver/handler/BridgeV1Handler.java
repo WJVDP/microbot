@@ -34,9 +34,9 @@ import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.health.PluginHealthRegistry;
 import net.runelite.client.plugins.health.StartupTimingRegistry;
-import net.runelite.client.plugins.microbot.Microbot;
-import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
+import net.runelite.client.plugins.microbot.services.BridgeApiService;
+import net.runelite.client.plugins.microbot.services.DefaultBridgeApiService;
 import net.runelite.client.plugins.runtime.PluginArtifact;
 import net.runelite.client.plugins.runtime.PluginRuntimeArtifactStatus;
 import net.runelite.client.plugins.runtime.PluginRuntimeDiscoveryResult;
@@ -47,18 +47,23 @@ public class BridgeV1Handler extends AgentHandler
 	private static final String BASE_PATH = "/bridge/v1";
 	private static final int MAX_EVENTS = 200;
 
-	private final BridgeServices services;
+	private final BridgeApiService services;
 	private final Deque<Map<String, Object>> events = new LinkedList<>();
 
 	public BridgeV1Handler(Gson gson, MicrobotPluginManager microbotPluginManager)
 	{
-		this(gson, new DefaultBridgeServices(microbotPluginManager));
+		this(gson, new LegacyBridgeApiService(microbotPluginManager));
 	}
 
-	BridgeV1Handler(Gson gson, BridgeServices services)
+	public BridgeV1Handler(Gson gson, BridgeApiService services)
 	{
 		super(gson);
 		this.services = services;
+	}
+
+	public BridgeV1Handler(Gson gson, DefaultBridgeApiService services)
+	{
+		this(gson, (BridgeApiService) services);
 	}
 
 	@Override
@@ -792,51 +797,11 @@ public class BridgeV1Handler extends AgentHandler
 		return null;
 	}
 
-	interface BridgeServices
-	{
-		PluginManager getPluginManager();
-
-		ConfigManager getConfigManager();
-
-		PluginRuntimeDiscoveryResult discoverPluginArtifactStatus() throws IOException;
-
-		boolean installPluginArtifact(String id, String version);
-
-		boolean updatePluginArtifact(String id, String version);
-
-		boolean removePluginArtifact(String id);
-
-		default Map<String, Object> getPluginHealthStatus()
-		{
-			return PluginHealthRegistry.getDefault().status();
-		}
-
-		default Map<String, Object> getStartupTimingStatus()
-		{
-			return StartupTimingRegistry.getDefault().status();
-		}
-
-		default Instant now()
-		{
-			return Instant.now();
-		}
-
-		default String getRuneLiteVersion()
-		{
-			return RuneLiteProperties.getVersion();
-		}
-
-		default String getMicrobotVersion()
-		{
-			return RuneLiteProperties.getMicrobotVersion();
-		}
-	}
-
-	private static final class DefaultBridgeServices implements BridgeServices
+	private static final class LegacyBridgeApiService implements BridgeApiService
 	{
 		private final MicrobotPluginManager microbotPluginManager;
 
-		private DefaultBridgeServices(MicrobotPluginManager microbotPluginManager)
+		private LegacyBridgeApiService(MicrobotPluginManager microbotPluginManager)
 		{
 			this.microbotPluginManager = microbotPluginManager;
 		}
@@ -846,7 +811,7 @@ public class BridgeV1Handler extends AgentHandler
 		{
 			try
 			{
-				return Microbot.getPluginManager();
+				return net.runelite.client.plugins.microbot.Microbot.getPluginManager();
 			}
 			catch (Exception ex)
 			{
@@ -859,7 +824,7 @@ public class BridgeV1Handler extends AgentHandler
 		{
 			try
 			{
-				return Microbot.getConfigManager();
+				return net.runelite.client.plugins.microbot.Microbot.getConfigManager();
 			}
 			catch (Exception ex)
 			{
@@ -876,7 +841,7 @@ public class BridgeV1Handler extends AgentHandler
 		@Override
 		public boolean installPluginArtifact(String id, String version)
 		{
-			MicrobotPluginManifest manifest = getManifest(id);
+			net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest manifest = getManifest(id);
 			if (manifest == null)
 			{
 				return false;
@@ -888,7 +853,7 @@ public class BridgeV1Handler extends AgentHandler
 		@Override
 		public boolean updatePluginArtifact(String id, String version)
 		{
-			MicrobotPluginManifest manifest = getManifest(id);
+			net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest manifest = getManifest(id);
 			if (manifest == null)
 			{
 				return false;
@@ -900,7 +865,7 @@ public class BridgeV1Handler extends AgentHandler
 		@Override
 		public boolean removePluginArtifact(String id)
 		{
-			MicrobotPluginManifest manifest = getManifest(id);
+			net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest manifest = getManifest(id);
 			if (manifest == null)
 			{
 				return false;
@@ -909,7 +874,37 @@ public class BridgeV1Handler extends AgentHandler
 			return true;
 		}
 
-		private MicrobotPluginManifest getManifest(String id)
+		@Override
+		public Map<String, Object> getPluginHealthStatus()
+		{
+			return PluginHealthRegistry.getDefault().status();
+		}
+
+		@Override
+		public Map<String, Object> getStartupTimingStatus()
+		{
+			return StartupTimingRegistry.getDefault().status();
+		}
+
+		@Override
+		public Instant now()
+		{
+			return Instant.now();
+		}
+
+		@Override
+		public String getRuneLiteVersion()
+		{
+			return RuneLiteProperties.getVersion();
+		}
+
+		@Override
+		public String getMicrobotVersion()
+		{
+			return RuneLiteProperties.getMicrobotVersion();
+		}
+
+		private net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManifest getManifest(String id)
 		{
 			if (microbotPluginManager == null)
 			{

@@ -12,6 +12,7 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.agentserver.handler.*;
+import net.runelite.client.plugins.microbot.services.BridgeApiService;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
 import net.runelite.client.ui.DrawManager;
 
@@ -55,6 +56,9 @@ public class AgentServerPlugin extends Plugin {
 
 	@Inject
 	private MicrobotPluginManager microbotPluginManager;
+
+	@Inject
+	private BridgeApiService bridgeApiService;
 
 	private HttpServer server;
 	private net.runelite.client.plugins.microbot.agentserver.uds.UdsHttpServer udsServer;
@@ -157,7 +161,7 @@ public class AgentServerPlugin extends Plugin {
 				new StateMachineDebugHandler(gson),
 				new ProfileHandler(gson),
 				new DynamicScriptDeployHandler(gson),
-				new BridgeV1Handler(gson, microbotPluginManager)
+				new BridgeV1Handler(gson, bridgeApiService)
 		);
 	}
 
