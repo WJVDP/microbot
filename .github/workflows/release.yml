@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest  # You can choose a different runner if needed
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -53,6 +54,23 @@ jobs:
             "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar" \
             "https://files.microbot.cloud/releases/microbot/stable"
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign stable release jar
+        run: |
+          JAR="runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar"
+          BUNDLE="runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle"
+          if [ ! -f "$JAR" ]; then
+            echo "Stable release jar not found: $JAR" >&2
+            exit 1
+          fi
+          cosign sign-blob --yes --bundle "$BUNDLE" "$JAR"
+          test -s "$BUNDLE"
+
+      - name: Validate release signing workflow
+        run: scripts/validate-release-signing.sh .github/workflows/release.yml
+
       - name: Create Release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
@@ -63,6 +81,7 @@ jobs:
           files: |
             /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
             /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.sha256
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.bundle
             /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-stable.json
 
       - name: Upload Jar to Hetzner
@@ -71,7 +90,7 @@ jobs:
           host: ${{ secrets.PROD_HOST }}
           username: root
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: runelite-client/build/libs/microbot-*.jar
+          source: runelite-client/build/libs/microbot-*.jar,runelite-client/build/libs/microbot-*.jar.bundle
           target: /var/www/files/releases/microbot/stable/
           strip_components: 3
 

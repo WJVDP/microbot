@@ -81,6 +81,18 @@ Users and release validation jobs should verify both:
 - the SHA-256 checksum for artifact integrity
 - the cosign signature for stable workflow provenance
 
+Download `microbot-<version>.jar`, `microbot-<version>.jar.sha256`, and
+`microbot-<version>.jar.bundle` from the same stable release location, then run:
+
+```bash
+sha256sum -c microbot-<version>.jar.sha256
+cosign verify-blob \
+  --bundle microbot-<version>.jar.bundle \
+  --certificate-identity "https://github.com/WJVDP/microbot/.github/workflows/release.yml@refs/heads/main" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  microbot-<version>.jar
+```
+
 Signature URLs may be added to `update-stable.json` by a later metadata schema
 change. Until then, publish the signature and verification material beside the
 jar and checksum.
