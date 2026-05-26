@@ -89,6 +89,17 @@ export interface BridgePluginArtifact {
   signature: string | null;
   installed: boolean;
   loadable: boolean;
+  warnings: string[];
+  signatureClassification: "TRUSTED_MICROBOT" | "TRUSTED_RUNELITE_HUB" | "UNSIGNED_LOCAL" | "UNKNOWN_SIGNER" | "INVALID_SIGNATURE" | "MALFORMED_SIGNATURE" | "UNSIGNED_BLOCKED" | null;
+  signaturePolicyAction: "allow" | "warn" | "block" | null;
+  signatureReasonCode: "trusted_microbot" | "trusted_runelite_hub" | "unsigned_local" | "unsigned_blocked" | "unknown_signer" | "invalid_signature" | "malformed_signature" | "dev_override" | null;
+  signatureReason: string | null;
+  capability_state: "normal" | "missing" | "unknown" | "restricted";
+  capabilities: string[];
+  restricted_capabilities: string[];
+  capability_policy_action: "allow" | "warn" | "block";
+  capability_reason: "capabilities_ok" | "capabilities_missing" | "capabilities_unknown" | "capabilities_restricted" | "capabilities_local_warning" | "capabilities_blocked_for_source";
+  capability_reason_message: string;
   errors: string[];
 }
 

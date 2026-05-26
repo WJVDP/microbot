@@ -102,14 +102,38 @@ public class PluginRuntime implements PluginRuntimeService
 		List<PluginRuntimeArtifactStatus> statuses = new ArrayList<>(artifacts.size());
 		for (PluginArtifact artifact : artifacts)
 		{
-			List<String> errors = new ArrayList<>(verifier.verify(artifact).getErrors());
+			PluginArtifactValidationResult verification = verifier.verify(artifact);
+			List<String> errors = new ArrayList<>(verification.getErrors());
+			List<String> warnings = new ArrayList<>(verification.getWarnings());
+			CapabilityStatus capabilityStatus = PluginCapabilityPolicy.evaluate(artifact);
+			if (capabilityStatus.warning)
+			{
+				warnings.add(capabilityStatus.reason);
+			}
+			else if ("block".equals(capabilityStatus.policyAction))
+			{
+				errors.add(capabilityStatus.reason);
+			}
 			errors.addAll(validator.validate(artifact).getErrors());
 			if (idCounts.getOrDefault(artifact.getId(), 0) > 1)
 			{
 				errors.add(DUPLICATE_ID_ERROR_PREFIX + artifact.getId());
 			}
 			pluginHealthRegistry.setDisabledOrBlockedReason(artifact.getId(), errors.isEmpty() ? null : String.join("; ", errors));
-			statuses.add(new PluginRuntimeArtifactStatus(artifact, errors));
+			statuses.add(new PluginRuntimeArtifactStatus(
+				artifact,
+				errors,
+				warnings,
+				verification.getSignatureClassification(),
+				verification.getSignaturePolicyAction(),
+				verification.getSignatureReasonCode(),
+				verification.getSignatureReason(),
+				capabilityStatus.state,
+				capabilityStatus.capabilities,
+				capabilityStatus.restrictedCapabilities,
+				capabilityStatus.policyAction,
+				capabilityStatus.reasonCode,
+				capabilityStatus.reason));
 		}
 		return new PluginRuntimeDiscoveryResult(statuses);
 	}

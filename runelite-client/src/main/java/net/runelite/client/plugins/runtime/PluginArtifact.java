@@ -30,6 +30,8 @@ public final class PluginArtifact
 	private final String minClientVersion;
 	private final boolean disabled;
 	private final boolean malformedManifest;
+	@Nullable
+	private final PluginCapabilityManifest capabilityManifest;
 
 	private PluginArtifact(
 		PluginArtifactSource source,
@@ -43,7 +45,8 @@ public final class PluginArtifact
 		List<String> entryClasses,
 		@Nullable String minClientVersion,
 		boolean disabled,
-		boolean malformedManifest)
+		boolean malformedManifest,
+		@Nullable PluginCapabilityManifest capabilityManifest)
 	{
 		this.source = Objects.requireNonNull(source, "source");
 		this.metadataSource = Objects.requireNonNull(metadataSource, "metadataSource");
@@ -57,6 +60,7 @@ public final class PluginArtifact
 		this.minClientVersion = emptyToNull(minClientVersion);
 		this.disabled = disabled;
 		this.malformedManifest = malformedManifest;
+		this.capabilityManifest = capabilityManifest;
 	}
 
 	public static Builder builder(PluginArtifactSource source, String id)
@@ -128,6 +132,12 @@ public final class PluginArtifact
 		return malformedManifest;
 	}
 
+	@Nullable
+	public PluginCapabilityManifest getCapabilityManifest()
+	{
+		return capabilityManifest;
+	}
+
 	private static String requireText(String value, String field)
 	{
 		if (value == null || value.trim().isEmpty())
@@ -157,6 +167,7 @@ public final class PluginArtifact
 		private String minClientVersion;
 		private boolean disabled;
 		private boolean malformedManifest;
+		private PluginCapabilityManifest capabilityManifest;
 
 		private Builder(PluginArtifactSource source, String id)
 		{
@@ -230,6 +241,12 @@ public final class PluginArtifact
 			return this;
 		}
 
+		public Builder capabilityManifest(PluginCapabilityManifest capabilityManifest)
+		{
+			this.capabilityManifest = capabilityManifest;
+			return this;
+		}
+
 		public PluginArtifact build()
 		{
 			return new PluginArtifact(
@@ -244,7 +261,8 @@ public final class PluginArtifact
 				entryClasses,
 				minClientVersion,
 				disabled,
-				malformedManifest);
+				malformedManifest,
+				capabilityManifest);
 		}
 
 		private static PluginArtifactMetadataSource defaultMetadataSource(

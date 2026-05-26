@@ -42,3 +42,17 @@ Read `docs/entity-guides/README.md`. Add a gotcha there when you fix an entity-a
 - State machines (use for 3+ phase scripts): `.../microbot/statemachine/AGENTS.md`
 - Architecture: `docs/ARCHITECTURE.md`, `docs/decisions/`
 - Setup: `docs/development.md`, `docs/installation.md`
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `WJVDP/microbot` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the canonical label vocabulary already configured in GitHub. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo: read root `CONTEXT.md` for glossary terms and `docs/decisions/` for ADRs. See `docs/agents/domain.md`.

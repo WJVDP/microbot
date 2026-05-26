@@ -10,7 +10,7 @@ import java.io.IOException;
 @FunctionalInterface
 public interface PluginArtifactSignatureVerifier
 {
-	PluginArtifactSignatureVerifier ACCEPT_UNSIGNED = (artifact, artifactFile) -> true;
+	PluginArtifactSignatureVerifier ACCEPT_UNSIGNED = (artifact, artifactFile) -> PluginArtifactSignatureVerification.TRUSTED;
 
-	boolean verify(PluginArtifact artifact, File artifactFile) throws IOException;
+	PluginArtifactSignatureVerification verify(PluginArtifact artifact, File artifactFile) throws IOException;
 }

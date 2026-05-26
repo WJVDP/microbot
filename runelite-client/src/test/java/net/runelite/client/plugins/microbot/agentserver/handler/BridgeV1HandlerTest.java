@@ -174,7 +174,17 @@ public class BridgeV1HandlerTest
 		assertEquals("abc123", dto.get("checksumSha256").getAsString());
 		assertFalse(dto.get("installed").getAsBoolean());
 		assertFalse(dto.get("loadable").getAsBoolean());
+		assertEquals("UNSIGNED_BLOCKED", dto.get("signatureClassification").getAsString());
+		assertEquals("block", dto.get("signaturePolicyAction").getAsString());
+		assertEquals("unsigned_blocked", dto.get("signatureReasonCode").getAsString());
+		assertEquals("Unsigned plugin is not allowed from this source.", dto.get("signatureReason").getAsString());
+		assertEquals("missing", dto.get("capability_state").getAsString());
+		assertEquals(0, dto.getAsJsonArray("capabilities").size());
+		assertEquals(0, dto.getAsJsonArray("restricted_capabilities").size());
+		assertEquals("block", dto.get("capability_policy_action").getAsString());
+		assertEquals("capabilities_blocked_for_source", dto.get("capability_reason").getAsString());
 		assertEquals("Plugin artifact file is missing", dto.getAsJsonArray("errors").get(0).getAsString());
+		assertEquals("Unsigned plugin is not allowed from this source.", dto.getAsJsonArray("errors").get(1).getAsString());
 	}
 
 	@Test
@@ -191,19 +201,14 @@ public class BridgeV1HandlerTest
 	@Test
 	public void artifactInstallUpdateRemoveCommandsAreQueued() throws Exception
 	{
-		JsonObject install = requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/install", "{\"version\":\"1.0.0\"}", 202);
-		JsonObject update = requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/update", "{}", 202);
+		JsonObject install = requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/install", "{\"version\":\"1.0.0\"}", 409);
+		JsonObject update = requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/update", "{}", 409);
 		JsonObject remove = requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/remove", "{}", 202);
 
-		assertEquals("install", install.get("action").getAsString());
-		assertEquals("pluginArtifact", install.get("targetType").getAsString());
-		assertEquals("test-artifact", install.get("id").getAsString());
-		assertTrue(install.get("accepted").getAsBoolean());
-		assertEquals("queued", install.get("status").getAsString());
-		assertNotNull(install.get("commandId").getAsString());
-		assertEquals(List.of("install:test-artifact:1.0.0", "update:test-artifact:null", "remove:test-artifact"), services.commands);
+		assertEquals("Capability policy blocks install for plugin artifact: test-artifact", install.get("error").getAsString());
+		assertEquals("Capability policy blocks update for plugin artifact: test-artifact", update.get("error").getAsString());
+		assertEquals(List.of("remove:test-artifact"), services.commands);
 
-		assertEquals("update", update.get("action").getAsString());
 		assertEquals("remove", remove.get("action").getAsString());
 	}
 
@@ -227,12 +232,12 @@ public class BridgeV1HandlerTest
 	@Test
 	public void eventsAndRuntimeHealthAreReadable() throws Exception
 	{
-		requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/install", "{}", 202);
+		requestJson("POST", "/bridge/v1/plugin-artifacts/test-artifact/remove", "{}", 202);
 
 		JsonObject events = requestJson("GET", "/bridge/v1/events", null);
 		JsonArray eventList = events.getAsJsonArray("events");
 		assertEquals(1, events.get("count").getAsInt());
-		assertEquals("plugin.install", eventList.get(0).getAsJsonObject().get("type").getAsString());
+		assertEquals("plugin.remove", eventList.get(0).getAsJsonObject().get("type").getAsString());
 
 		JsonObject health = requestJson("GET", "/bridge/v1/runtime-health", null);
 		assertTrue(health.get("pluginManagerAvailable").getAsBoolean());

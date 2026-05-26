@@ -39,7 +39,8 @@ For changes that touch launcher, packaging, or dependency metadata, also run:
 - The shaded client jar is produced by `:client:shadowJar`.
 - Release packaging is produced by `:client:assemble`.
 - Stable releases publish `microbot-<version>.jar`,
-  `microbot-<version>.jar.sha256`, and `update-stable.json`.
+  `microbot-<version>.jar.sha256`, `microbot-<version>.jar.bundle`, cosign
+  verification material, and `update-stable.json`.
 - Generate checksum and update metadata locally with:
 
 ```bash
@@ -47,20 +48,69 @@ scripts/generate-release-metadata.sh stable <version> runelite-client/build/libs
 ```
 
 - Signing is required before publishing a public release.
+- Stable release signing uses keyless Sigstore/cosign signing from GitHub
+  Actions OIDC identity. See
+  `docs/decisions/adr-0008-keyless-stable-release-signing.md`.
+- The stable release workflow requires `contents: write` and `id-token: write`
+  permissions. No production release-signing private key, GPG key, or signing
+  passphrase is stored in repository secrets.
+- Existing deploy and API secrets, such as `PROD_SSH_KEY`, `API_EMAIL`, and
+  `API_PASSWORD`, are not signing secrets.
 - Release notes must include upstream RuneLite and Microbot merge points when
   either integration branch changed since the prior release.
+
+## Local Signing Dry Runs
+
+Local release rehearsal should generate the jar, SHA-256 file, and update
+metadata. It must not create a production-trusted release signature.
+
+Developers may use a clearly test-only cosign key to exercise signature-file
+plumbing locally:
+
+```bash
+COSIGN_KEY=./dev/cosign-test.key cosign sign-blob --key "$COSIGN_KEY" runelite-client/build/libs/microbot-<version>.jar
+```
+
+Any locally generated signature is test material only. Production release
+signatures come from the stable CI workflow.
+
+## Public Verification
+
+Users and release validation jobs should verify both:
+
+- the SHA-256 checksum for artifact integrity
+- the cosign signature for stable workflow provenance
+
+Signature URLs may be added to `update-stable.json` by a later metadata schema
+change. Until then, publish the signature and verification material beside the
+jar and checksum.
+
+## Signing Recovery
+
+There is no long-lived production release-signing key to rotate. If the stable
+release workflow or repository identity is compromised, disable the workflow or
+affected GitHub access, investigate, and publish a superseding stable release
+from a restored trusted workflow.
+
+If a bad artifact was already published, mark the GitHub release as compromised
+where practical and use metadata-forward rollback or a fixed stable release.
+Do not silently rewrite or delete published release tags.
 
 ## Release Channels
 
 - `stable`: built from `main` by `.github/workflows/release.yml`.
-- `beta`: reserved for release candidates; publish `update-beta.json` before
-  exposing to end users.
+- `beta`: reserved for release candidates; publish `microbot-beta-<version>.jar`,
+  its SHA-256 file, and `update-beta.json` from an explicit beta workflow before
+  exposing to end users. The GitHub `beta` release tag is a moving channel tag.
 - `nightly`: built by nightly workflows and should publish
-  `update-nightly.json`.
+  `microbot-nightly-<version>.jar`, its SHA-256 file, and
+  `update-nightly.json`. The GitHub `nightly` release tag is a moving channel
+  tag.
 
 Rollback behavior is metadata-forward: publish a newer channel metadata file
 that points back to the previous known-good artifact and checksum. Do not
-rewrite or delete published release tags.
+rewrite or delete immutable stable release tags. Moving beta/nightly channel
+tags may be advanced by their workflows to represent the current channel head.
 
 ## Tagging
 

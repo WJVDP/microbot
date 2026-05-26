@@ -81,8 +81,8 @@ Implementation policy:
   checksum metadata, Runtime V2 applies the same SHA-256 check used for hub
   artifacts.
 - Signature metadata is carried on `PluginArtifact` and checked through the
-  `PluginArtifactSignatureVerifier` extension point. The default verifier does
-  not enforce a trust model until the community plugin signing model is decided.
+  `PluginArtifactSignatureVerifier` extension point. Source-aware enforcement
+  follows `docs/decisions/adr-0006-community-plugin-signing-trust-model.md`.
 
 Verification:
 
@@ -278,6 +278,9 @@ Verification:
 **Why seventh:** checksum metadata exists, but signing and channel automation
 need to be complete before public distribution is considered mature.
 
+Status: next major milestone after the current Runtime V2 trust-policy slice is
+reviewed and verified.
+
 Requirements:
 
 - Wire release signing into CI using documented secrets/properties.
@@ -305,6 +308,15 @@ Acceptance criteria:
 
 ## Open Decisions
 
-- Initial plugin signing model for community plugins.
-- Whether plugin permissions/capabilities are enforceable in the first UI
-  shell or declarative only.
+Resolved:
+
+- Community plugin signing model:
+  `docs/decisions/adr-0006-community-plugin-signing-trust-model.md`.
+- First-shell capability and permission enforcement boundary:
+  `docs/decisions/adr-0007-staged-plugin-capability-permissions.md`.
+
+Still open:
+
+- Release signing secret format, storage, and CI wiring details.
+- Beta/nightly publication workflow ownership.
+- Plugin API compatibility policy per client version.

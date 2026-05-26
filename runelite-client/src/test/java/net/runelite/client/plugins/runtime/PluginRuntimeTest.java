@@ -86,13 +86,19 @@ public class PluginRuntimeTest
 	{
 		PluginArtifact disabled = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "disabled")
 			.entryClasses("disabled.Plugin")
+			.signature("test")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "disabled"))
 			.disabled(true)
 			.build();
 		PluginArtifact incompatible = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "incompatible")
 			.entryClasses("incompatible.Plugin")
+			.signature("test")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "incompatible"))
 			.minClientVersion("999.0.0")
 			.build();
 		PluginArtifact missingEntryClasses = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "missing-entry-classes")
+			.signature("test")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "missing-entry-classes"))
 			.build();
 
 		PluginRuntime runtime = new PluginRuntime(
@@ -113,9 +119,12 @@ public class PluginRuntimeTest
 	{
 		PluginArtifact first = PluginArtifact.builder(PluginArtifactSource.RUNELITE_HUB, "duplicate")
 			.entryClasses("first.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.RUNELITE_HUB, "duplicate"))
 			.build();
 		PluginArtifact second = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "duplicate")
 			.entryClasses("second.Plugin")
+			.signature("test")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "duplicate"))
 			.build();
 
 		PluginRuntime runtime = new PluginRuntime(Arrays.asList(
@@ -135,6 +144,7 @@ public class PluginRuntimeTest
 	{
 		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local")
 			.entryClasses("local.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
 			new StaticRepository(PluginArtifactSource.LOCAL_DIRECTORY, Collections.singletonList(artifact))));
@@ -154,7 +164,9 @@ public class PluginRuntimeTest
 		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "valid")
 			.artifactFile(jar)
 			.checksumSha256(sha256(jar))
+			.signature("test")
 			.entryClasses("valid.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "valid"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
 			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))));
@@ -174,6 +186,7 @@ public class PluginRuntimeTest
 			.artifactFile(jar)
 			.checksumSha256(sha256("expected"))
 			.entryClasses("mismatch.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "mismatch"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
 			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))));
@@ -198,7 +211,8 @@ public class PluginRuntimeTest
 		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
 
 		assertTrue(result.hasErrors());
-		assertEquals(Collections.singletonList(PluginArtifactVerifier.MISSING_ARTIFACT_FILE_ERROR), result.getArtifacts().get(0).getErrors());
+		assertTrue(result.getArtifacts().get(0).getErrors().contains(PluginArtifactVerifier.MISSING_ARTIFACT_FILE_ERROR));
+		assertTrue(result.getArtifacts().get(0).getErrors().contains("Unsigned plugin is not allowed from this source."));
 	}
 
 	@Test
@@ -225,16 +239,240 @@ public class PluginRuntimeTest
 			.artifactFile(jar)
 			.signature("signature")
 			.entryClasses("signed.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "signed"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(
 			Collections.singletonList(new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))),
 			new PluginArtifactValidator(version -> true),
-			new PluginArtifactVerifier((signedArtifact, artifactFile) -> false));
+			new PluginArtifactVerifier((signedArtifact, artifactFile) -> PluginArtifactSignatureVerification.INVALID));
 
 		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
 
 		assertTrue(result.hasErrors());
-		assertEquals(Collections.singletonList(PluginArtifactVerifier.SIGNATURE_INVALID_ERROR), result.getArtifacts().get(0).getErrors());
+		assertEquals(PluginArtifactSignatureClassification.INVALID_SIGNATURE, result.getArtifacts().get(0).getSignatureClassification());
+		assertEquals("invalid_signature", result.getArtifacts().get(0).getSignatureReasonCode());
+		assertEquals(Collections.singletonList("Plugin signature did not match the artifact."), result.getArtifacts().get(0).getErrors());
+	}
+
+	@Test
+	public void discoveryStatusBlocksUnsignedMicrobotHubArtifacts() throws Exception
+	{
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "unsigned")
+			.entryClasses("unsigned.Plugin")
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertTrue(result.hasErrors());
+		assertFalse(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.UNSIGNED_BLOCKED, status.getSignatureClassification());
+		assertEquals("block", status.getSignaturePolicyAction());
+		assertEquals("unsigned_blocked", status.getSignatureReasonCode());
+		assertEquals("Unsigned plugin is not allowed from this source.", status.getSignatureReason());
+		assertTrue(status.getErrors().contains("Unsigned plugin is not allowed from this source."));
+	}
+
+	@Test
+	public void discoveryStatusAllowsUnsignedLocalArtifactsWithWarning() throws Exception
+	{
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local-unsigned")
+			.entryClasses("local.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local-unsigned"))
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.LOCAL_DIRECTORY, Collections.singletonList(artifact))));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertFalse(result.hasErrors());
+		assertTrue(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.UNSIGNED_LOCAL, status.getSignatureClassification());
+		assertEquals("warn", status.getSignaturePolicyAction());
+		assertEquals("unsigned_local", status.getSignatureReasonCode());
+		assertEquals("Unsigned local plugin. Allowed for development.", status.getSignatureReason());
+		assertEquals(Collections.singletonList("Unsigned local plugin. Allowed for development."), status.getWarnings());
+		assertEquals(Collections.emptyList(), status.getErrors());
+	}
+
+	@Test
+	public void discoveryStatusWarnsForLocalMissingCapabilityManifest() throws Exception
+	{
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local-missing-capabilities")
+			.entryClasses("local.Plugin")
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.LOCAL_DIRECTORY, Collections.singletonList(artifact))));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertFalse(result.hasErrors());
+		assertTrue(status.isLoadable());
+		assertEquals(PluginCapabilityState.MISSING, status.getCapabilityState());
+		assertEquals("warn", status.getCapabilityPolicyAction());
+		assertEquals("capabilities_local_warning", status.getCapabilityReasonCode());
+		assertEquals("Allowed because this is a local development plugin.", status.getCapabilityReason());
+		assertTrue(status.getWarnings().contains("Allowed because this is a local development plugin."));
+		assertEquals(Collections.emptyList(), status.getCapabilities());
+		assertEquals(Collections.emptyList(), status.getRestrictedCapabilities());
+	}
+
+	@Test
+	public void discoveryStatusBlocksHubMissingCapabilityManifest() throws Exception
+	{
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "hub-missing-capabilities")
+			.entryClasses("hub.Plugin")
+			.signature("test")
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertTrue(result.hasErrors());
+		assertFalse(status.isLoadable());
+		assertEquals(PluginCapabilityState.MISSING, status.getCapabilityState());
+		assertEquals("block", status.getCapabilityPolicyAction());
+		assertEquals("capabilities_blocked_for_source", status.getCapabilityReasonCode());
+		assertEquals("This plugin source requires valid capability metadata.", status.getCapabilityReason());
+		assertTrue(status.getErrors().contains("This plugin source requires valid capability metadata."));
+	}
+
+	@Test
+	public void discoveryStatusReportsUnknownAndRestrictedCapabilities() throws Exception
+	{
+		PluginCapabilityManifest manifest = PluginCapabilityManifest.builder(
+				"restricted", "Restricted", "1.0.0", PluginArtifactSource.MICROBOT_HUB)
+			.capabilities(Arrays.asList("game_state.read", "credentials.access", "future.power"))
+			.build();
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "restricted")
+			.entryClasses("restricted.Plugin")
+			.signature("test")
+			.capabilityManifest(manifest)
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))));
+
+		PluginRuntimeArtifactStatus status = runtime.discoverStatus().getArtifacts().get(0);
+
+		assertEquals(PluginCapabilityState.UNKNOWN, status.getCapabilityState());
+		assertEquals("block", status.getCapabilityPolicyAction());
+		assertEquals("capabilities_unknown", status.getCapabilityReasonCode());
+		assertEquals(Arrays.asList("game_state.read", "credentials.access", "future.power"), status.getCapabilities());
+		assertEquals(Collections.singletonList("credentials.access"), status.getRestrictedCapabilities());
+		assertTrue(status.getErrors().contains("Plugin declares capabilities this client does not recognize."));
+	}
+
+	@Test
+	public void discoveryStatusReportsRuneLiteHubProvenance() throws Exception
+	{
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.RUNELITE_HUB, "runelite")
+			.entryClasses("runelite.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.RUNELITE_HUB, "runelite"))
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
+			new StaticRepository(PluginArtifactSource.RUNELITE_HUB, Collections.singletonList(artifact))));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertFalse(result.hasErrors());
+		assertTrue(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.TRUSTED_RUNELITE_HUB, status.getSignatureClassification());
+		assertEquals("allow", status.getSignaturePolicyAction());
+		assertEquals("trusted_runelite_hub", status.getSignatureReasonCode());
+		assertEquals("Loaded through RuneLite Hub trust path.", status.getSignatureReason());
+		assertEquals(Collections.emptyList(), status.getErrors());
+	}
+
+	@Test
+	public void discoveryStatusAllowsTrustedMicrobotSignatures() throws Exception
+	{
+		File jar = temporaryFolder.newFile("trusted.jar");
+		writeFile(jar, "trusted");
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "trusted")
+			.artifactFile(jar)
+			.signature("signature")
+			.entryClasses("trusted.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "trusted"))
+			.build();
+		PluginRuntime runtime = new PluginRuntime(
+			Collections.singletonList(new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))),
+			new PluginArtifactValidator(version -> true),
+			new PluginArtifactVerifier((signedArtifact, artifactFile) -> PluginArtifactSignatureVerification.TRUSTED));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertFalse(result.hasErrors());
+		assertTrue(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.TRUSTED_MICROBOT, status.getSignatureClassification());
+		assertEquals("allow", status.getSignaturePolicyAction());
+		assertEquals("trusted_microbot", status.getSignatureReasonCode());
+		assertEquals("Verified Microbot signature.", status.getSignatureReason());
+		assertEquals(Collections.emptyList(), status.getErrors());
+	}
+
+	@Test
+	public void discoveryStatusBlocksUnknownSignerByDefault() throws Exception
+	{
+		File jar = temporaryFolder.newFile("unknown-signer.jar");
+		writeFile(jar, "unknown");
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "unknown-signer")
+			.artifactFile(jar)
+			.signature("signature")
+			.entryClasses("unknown.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "unknown-signer"))
+			.build();
+		PluginRuntime runtime = new PluginRuntime(
+			Collections.singletonList(new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Collections.singletonList(artifact))),
+			new PluginArtifactValidator(version -> true),
+			new PluginArtifactVerifier((signedArtifact, artifactFile) -> PluginArtifactSignatureVerification.UNKNOWN_SIGNER));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertTrue(result.hasErrors());
+		assertFalse(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.UNKNOWN_SIGNER, status.getSignatureClassification());
+		assertEquals("block", status.getSignaturePolicyAction());
+		assertEquals("unknown_signer", status.getSignatureReasonCode());
+		assertEquals("Plugin was signed by an untrusted signer.", status.getSignatureReason());
+		assertTrue(status.getErrors().contains("Plugin was signed by an untrusted signer."));
+	}
+
+	@Test
+	public void discoveryStatusAllowsLocalInvalidSignatureWithDeveloperOverride() throws Exception
+	{
+		File jar = temporaryFolder.newFile("local-invalid.jar");
+		writeFile(jar, "local-invalid");
+		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local-invalid")
+			.artifactFile(jar)
+			.signature("signature")
+			.entryClasses("local.Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local-invalid"))
+			.build();
+		PluginRuntime runtime = new PluginRuntime(
+			Collections.singletonList(new StaticRepository(PluginArtifactSource.LOCAL_DIRECTORY, Collections.singletonList(artifact))),
+			new PluginArtifactValidator(version -> true),
+			new PluginArtifactVerifier((signedArtifact, artifactFile) -> PluginArtifactSignatureVerification.INVALID, true));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+		PluginRuntimeArtifactStatus status = result.getArtifacts().get(0);
+
+		assertFalse(result.hasErrors());
+		assertTrue(status.isLoadable());
+		assertEquals(PluginArtifactSignatureClassification.INVALID_SIGNATURE, status.getSignatureClassification());
+		assertEquals("warn", status.getSignaturePolicyAction());
+		assertEquals("dev_override", status.getSignatureReasonCode());
+		assertEquals("Loaded by explicit local developer override.", status.getSignatureReason());
+		assertEquals(Collections.singletonList("Loaded by explicit local developer override."), status.getWarnings());
+		assertEquals(Collections.emptyList(), status.getErrors());
 	}
 
 	private static void writeFile(File file, String content) throws Exception
@@ -270,6 +508,13 @@ public class PluginRuntimeTest
 			builder.append(String.format("%02x", value));
 		}
 		return builder.toString();
+	}
+
+	private static PluginCapabilityManifest capabilities(PluginArtifactSource source, String id)
+	{
+		return PluginCapabilityManifest.builder(id, id, "1.0.0", source)
+			.capabilities(Collections.singletonList("game_state.read"))
+			.build();
 	}
 
 	private static final class StaticRepository implements PluginRepository

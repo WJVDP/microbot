@@ -141,11 +141,37 @@ Hub artifacts.
       "signature": null,
       "installed": true,
       "loadable": true,
+      "warnings": [],
+      "signatureClassification": "TRUSTED_MICROBOT",
+      "signaturePolicyAction": "allow",
+      "signatureReasonCode": "trusted_microbot",
+      "signatureReason": "Verified Microbot signature.",
+      "capability_state": "normal",
+      "capabilities": ["game_state.read"],
+      "restricted_capabilities": [],
+      "capability_policy_action": "allow",
+      "capability_reason": "capabilities_ok",
+      "capability_reason_message": "Plugin capability metadata is present.",
       "errors": []
     }
   ]
 }
 ```
+
+Signature status values come from Runtime V2 policy evaluation. Unsigned local
+plugins are reported as warning-only `UNSIGNED_LOCAL`; official-channel
+unsigned artifacts are reported as blocked `UNSIGNED_BLOCKED`. RuneLite Hub
+artifacts use `TRUSTED_RUNELITE_HUB` to preserve external trust provenance
+rather than reporting as Microbot-signed.
+
+Capability status values are declarative first-shell policy signals. Bridge V1
+reports `normal`, `missing`, `unknown`, or `restricted` and the lifecycle policy
+action for install, update, and start decisions. Local-directory artifacts warn
+by default for missing, unknown, or restricted capabilities; core and hub
+artifacts block missing or unknown capability metadata, and block restricted
+capabilities unless source policy explicitly allows them. These fields do not
+claim fine-grained Java API, filesystem, process, network, or reflection
+sandbox enforcement.
 
 ### `POST /bridge/v1/plugin-artifacts/{id}/install`
 

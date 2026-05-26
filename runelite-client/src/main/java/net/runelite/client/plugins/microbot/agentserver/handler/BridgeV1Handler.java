@@ -38,6 +38,8 @@ import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManage
 import net.runelite.client.plugins.microbot.services.BridgeApiService;
 import net.runelite.client.plugins.microbot.services.DefaultBridgeApiService;
 import net.runelite.client.plugins.runtime.PluginArtifact;
+import net.runelite.client.plugins.runtime.PluginCapabilityPolicy;
+import net.runelite.client.plugins.runtime.PluginLifecycleOperation;
 import net.runelite.client.plugins.runtime.PluginRuntimeArtifactStatus;
 import net.runelite.client.plugins.runtime.PluginRuntimeDiscoveryResult;
 
@@ -257,6 +259,15 @@ public class BridgeV1Handler extends AgentHandler
 		}
 
 		String id = extractPluginId(subPath, start ? "/start" : "/stop");
+		if (start)
+		{
+			PluginRuntimeArtifactStatus artifactStatus = findArtifactStatus(id);
+			if (artifactStatus != null && !PluginCapabilityPolicy.allowsLifecycleOperation(artifactStatus, PluginLifecycleOperation.START))
+			{
+				sendJson(exchange, 409, errorResponse("Capability policy blocks start for plugin: " + id));
+				return;
+			}
+		}
 		Plugin plugin = findPlugin(pluginManager, id);
 		if (plugin == null)
 		{
@@ -317,6 +328,12 @@ public class BridgeV1Handler extends AgentHandler
 		if (artifactStatus == null)
 		{
 			sendJson(exchange, 404, errorResponse("Plugin artifact not found: " + id));
+			return;
+		}
+		PluginLifecycleOperation operation = artifactLifecycleOperation(action);
+		if (!PluginCapabilityPolicy.allowsLifecycleOperation(artifactStatus, operation))
+		{
+			sendJson(exchange, 409, errorResponse("Capability policy blocks " + action + " for plugin artifact: " + id));
 			return;
 		}
 
@@ -570,6 +587,17 @@ public class BridgeV1Handler extends AgentHandler
 		dto.put("signature", artifact.getSignature());
 		dto.put("installed", artifact.getArtifactFile() != null);
 		dto.put("loadable", status.isLoadable());
+		dto.put("warnings", status.getWarnings());
+		dto.put("signatureClassification", status.getSignatureClassification() == null ? null : status.getSignatureClassification().name());
+		dto.put("signaturePolicyAction", status.getSignaturePolicyAction());
+		dto.put("signatureReasonCode", status.getSignatureReasonCode());
+		dto.put("signatureReason", status.getSignatureReason());
+		dto.put("capability_state", status.getCapabilityState().name().toLowerCase(java.util.Locale.ROOT));
+		dto.put("capabilities", status.getCapabilities());
+		dto.put("restricted_capabilities", status.getRestrictedCapabilities());
+		dto.put("capability_policy_action", status.getCapabilityPolicyAction());
+		dto.put("capability_reason", status.getCapabilityReasonCode());
+		dto.put("capability_reason_message", status.getCapabilityReason());
 		dto.put("errors", status.getErrors());
 		return dto;
 	}
@@ -751,6 +779,19 @@ public class BridgeV1Handler extends AgentHandler
 			return "plugin.remove";
 		}
 		return "plugin.install";
+	}
+
+	private static PluginLifecycleOperation artifactLifecycleOperation(String action)
+	{
+		if ("update".equals(action))
+		{
+			return PluginLifecycleOperation.UPDATE;
+		}
+		if ("remove".equals(action))
+		{
+			return PluginLifecycleOperation.REMOVE;
+		}
+		return PluginLifecycleOperation.INSTALL;
 	}
 
 	private void recordEvent(String type, String level, String pluginId, String action, String status, String message)
