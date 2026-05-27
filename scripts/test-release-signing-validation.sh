@@ -59,13 +59,14 @@ jobs:
       - name: Sign stable release jar
         run: |
           cosign sign-blob --yes --bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
-      - name: Create Release
-        with:
-          files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.sha256
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.bundle
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-stable.json
+      - name: Generate release notes
+        run: scripts/generate-release-notes.sh --version ${{ steps.version.outputs.version }} --output runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md
+      - name: Create draft GitHub Release
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --draft \
+            --notes-file "runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle"
       - name: Upload Jar to Hetzner
         with:
           source: runelite-client/build/libs/microbot-*.jar,runelite-client/build/libs/microbot-*.jar.bundle
@@ -86,10 +87,10 @@ jobs:
       - name: Sign stable release jar
         run: |
           cosign sign-blob --yes --bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
-      - name: Create Release
-        with:
-          files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.bundle
+      - name: Generate release notes
+        run: scripts/generate-release-notes.sh --version ${{ steps.version.outputs.version }} --output runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md
+      - name: Create draft GitHub Release
+        run: gh release create "${{ steps.version.outputs.version }}" --draft --notes-file "runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md" "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle"
       - name: Upload Jar to Hetzner
         with:
           source: runelite-client/build/libs/microbot-*.jar.bundle
@@ -109,12 +110,10 @@ jobs:
       - name: Sign stable release jar
         run: |
           cosign sign-blob --yes --bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
-      - name: Create Release
-        with:
-          files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar.sha256
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-stable.json
+      - name: Generate release notes
+        run: scripts/generate-release-notes.sh --version ${{ steps.version.outputs.version }} --output runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md
+      - name: Create draft GitHub Release
+        run: gh release create "${{ steps.version.outputs.version }}" --draft --notes-file "runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md"
       - name: Upload Jar to Hetzner
         with:
           source: runelite-client/build/libs/microbot-*.jar

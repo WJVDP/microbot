@@ -61,8 +61,38 @@ scripts/generate-release-metadata.sh stable <version> runelite-client/build/libs
   passphrase is stored in repository secrets.
 - Existing deploy and API secrets, such as `PROD_SSH_KEY`, `API_EMAIL`, and
   `API_PASSWORD`, are not signing secrets.
-- Release notes must include upstream RuneLite and Microbot merge points when
-  either integration branch changed since the prior release.
+- Release notes are generated before GitHub release publication. They must
+  include upstream RuneLite and Microbot merge points when either integration
+  branch changed since the prior release.
+
+## Release Notes
+
+Generate a local draft from the previous stable tag to the current release
+commit with:
+
+```bash
+scripts/generate-release-notes.sh --version <version> --output build/release-notes-<version>.md
+```
+
+The script automatically detects the previous tag before the current commit.
+For rehearsals or backfills, pass explicit refs:
+
+```bash
+scripts/generate-release-notes.sh \
+  --previous-tag <previous-version> \
+  --current <release-commit> \
+  --version <version> \
+  --output build/release-notes-<version>.md
+```
+
+The generated markdown lists the commit range, fork changes, upstream RuneLite
+merge updates, and upstream Microbot merge updates. Edit the draft before final
+publication if a merge subject needs clearer maintainer-facing wording.
+
+The stable release workflow writes the same notes file and creates a draft
+GitHub Release with `gh release create --draft --notes-file`. Maintainers review
+and edit that draft release body in GitHub, then publish the release manually
+after the artifacts and release notes are correct.
 
 ## Local Signing Dry Runs
 

@@ -34,13 +34,16 @@ grep -q -- '--bundle' "$workflow" \
 grep -q 'microbot-${{ steps.version.outputs.version }}.jar.bundle' "$workflow" \
   || fail "release workflow must use microbot-<version>.jar.bundle"
 
-release_files=$(awk '
-  /name: Create Release/ { in_step=1 }
-  in_step && /files:/ { in_files=1; next }
-  in_files && /^[^[:space:]-]/ { exit }
-  in_files { print }
-' "$workflow")
-printf '%s\n' "$release_files" | grep -q 'microbot-\*.jar.bundle' \
+grep -q 'scripts/generate-release-notes.sh' "$workflow" \
+  || fail "release workflow must generate release notes before creating the GitHub Release"
+
+grep -q -- '--notes-file' "$workflow" \
+  || fail "GitHub Release must use generated release notes"
+
+grep -q -- '--draft' "$workflow" \
+  || fail "GitHub Release must be created as a draft for maintainer review"
+
+grep -q 'microbot-${{ steps.version.outputs.version }}.jar.bundle' "$workflow" \
   || fail "GitHub Release upload must include microbot-*.jar.bundle"
 
 scp_sources=$(grep -E 'source: .*microbot-\*\.jar\.bundle' "$workflow" || true)
