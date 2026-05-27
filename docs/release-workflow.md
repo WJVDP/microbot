@@ -27,6 +27,11 @@ Run the baseline checks before tagging:
 ./gradlew :client:shadowJar
 ```
 
+The current supported Plugin API Compatibility Version is `1`. Before tagging,
+confirm release notes and plugin author guidance still point to
+`docs/plugin-api-compatibility.md` when plugin-facing Runtime V2, Bridge V1,
+metadata, or supported author API contracts changed.
+
 For changes that touch launcher, packaging, or dependency metadata, also run:
 
 ```bash

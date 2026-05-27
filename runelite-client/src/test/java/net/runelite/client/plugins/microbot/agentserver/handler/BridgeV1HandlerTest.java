@@ -171,6 +171,11 @@ public class BridgeV1HandlerTest
 		assertEquals("HUB_MANIFEST", dto.get("metadataSource").getAsString());
 		assertEquals("example.TestPlugin", dto.getAsJsonArray("entryClasses").get(0).getAsString());
 		assertEquals("1.0.0", dto.get("minClientVersion").getAsString());
+		assertEquals(1, dto.get("pluginApiVersion").getAsInt());
+		assertEquals(1, dto.get("clientPluginApiVersion").getAsInt());
+		assertEquals("allow", dto.get("compatibilityPolicyAction").getAsString());
+		assertEquals("plugin_api_compatible", dto.get("compatibilityReasonCode").getAsString());
+		assertEquals("Plugin API version is supported.", dto.get("compatibilityReason").getAsString());
 		assertEquals("abc123", dto.get("checksumSha256").getAsString());
 		assertFalse(dto.get("installed").getAsBoolean());
 		assertFalse(dto.get("loadable").getAsBoolean());
@@ -359,6 +364,7 @@ public class BridgeV1HandlerTest
 				.version("1.0.0")
 				.entryClasses("example.TestPlugin")
 				.minClientVersion("1.0.0")
+				.pluginApiVersion(1)
 				.checksumSha256("abc123")
 				.build();
 			PluginRepository repository = new PluginRepository()

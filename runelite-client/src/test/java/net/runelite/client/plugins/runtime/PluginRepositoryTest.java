@@ -103,6 +103,7 @@ public class PluginRepositoryTest
 		manifest.setVersion("2.0.0");
 		manifest.setSha256("abc123");
 		manifest.setMinClientVersion("1.10.0");
+		manifest.setPluginApiVersion("1");
 
 		MicrobotHubPluginRepository repository = new MicrobotHubPluginRepository(() -> Collections.singletonList(manifest));
 
@@ -116,8 +117,32 @@ public class PluginRepositoryTest
 		assertEquals("2.0.0", artifact.getVersion());
 		assertEquals("abc123", artifact.getChecksumSha256());
 		assertEquals("1.10.0", artifact.getMinClientVersion());
+		assertEquals("1", artifact.getPluginApiVersion());
 		assertEquals(PluginArtifactMetadataSource.HUB_MANIFEST, artifact.getMetadataSource());
 		assertTrue(artifact.getEntryClasses().isEmpty());
+	}
+
+	@Test
+	public void microbotHubManifestPluginApiVersionIsAuthoritativeWhenJarMetadataExists() throws Exception
+	{
+		File directory = temporaryFolder.newFolder();
+		File jar = new File(directory, "microbot-example.jar");
+		writeJarClass(jar, FutureApiRuntimePlugin.class);
+
+		MicrobotPluginManifest manifest = new MicrobotPluginManifest();
+		manifest.setInternalName("microbot-example");
+		manifest.setDisplayName("Microbot Example");
+		manifest.setPluginApiVersion("1");
+
+		MicrobotHubPluginRepository repository = new MicrobotHubPluginRepository(
+			() -> Collections.singletonList(manifest),
+			directory);
+
+		PluginArtifact artifact = repository.discover().get(0);
+
+		assertEquals("1", artifact.getPluginApiVersion());
+		assertEquals(Collections.singletonList(FutureApiRuntimePlugin.class.getName()), artifact.getEntryClasses());
+		assertEquals(PluginArtifactMetadataSource.LEGACY_PLUGIN_DESCRIPTOR_SCAN, artifact.getMetadataSource());
 	}
 
 	@Test
@@ -367,6 +392,11 @@ public class PluginRepositoryTest
 
 	@PluginDescriptor(name = "Legacy Runtime Plugin")
 	public static final class LegacyRuntimePlugin extends Plugin
+	{
+	}
+
+	@PluginDescriptor(name = "Future API Runtime Plugin", pluginApiVersion = 2)
+	public static final class FutureApiRuntimePlugin extends Plugin
 	{
 	}
 }

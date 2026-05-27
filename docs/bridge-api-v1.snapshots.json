@@ -80,6 +80,11 @@
           "example.ExamplePlugin"
         ],
         "minClientVersion": "1.10.0",
+        "pluginApiVersion": 1,
+        "clientPluginApiVersion": 1,
+        "compatibilityPolicyAction": "allow",
+        "compatibilityReasonCode": "plugin_api_compatible",
+        "compatibilityReason": "Plugin API version is supported.",
         "checksumSha256": "abc123",
         "signature": null,
         "installed": true,

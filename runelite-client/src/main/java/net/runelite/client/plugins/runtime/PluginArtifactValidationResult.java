@@ -15,6 +15,11 @@ public final class PluginArtifactValidationResult
 		null,
 		null,
 		null,
+		null,
+		null,
+		null,
+		null,
+		null,
 		null);
 
 	private final List<String> errors;
@@ -23,6 +28,11 @@ public final class PluginArtifactValidationResult
 	private final String signaturePolicyAction;
 	private final String signatureReasonCode;
 	private final String signatureReason;
+	private final Integer pluginApiVersion;
+	private final Integer clientPluginApiVersion;
+	private final String compatibilityPolicyAction;
+	private final String compatibilityReasonCode;
+	private final String compatibilityReason;
 
 	private PluginArtifactValidationResult(
 		List<String> errors,
@@ -30,7 +40,12 @@ public final class PluginArtifactValidationResult
 		PluginArtifactSignatureClassification signatureClassification,
 		String signaturePolicyAction,
 		String signatureReasonCode,
-		String signatureReason)
+		String signatureReason,
+		Integer pluginApiVersion,
+		Integer clientPluginApiVersion,
+		String compatibilityPolicyAction,
+		String compatibilityReasonCode,
+		String compatibilityReason)
 	{
 		this.errors = Collections.unmodifiableList(errors);
 		this.warnings = Collections.unmodifiableList(warnings);
@@ -38,6 +53,11 @@ public final class PluginArtifactValidationResult
 		this.signaturePolicyAction = signaturePolicyAction;
 		this.signatureReasonCode = signatureReasonCode;
 		this.signatureReason = signatureReason;
+		this.pluginApiVersion = pluginApiVersion;
+		this.clientPluginApiVersion = clientPluginApiVersion;
+		this.compatibilityPolicyAction = compatibilityPolicyAction;
+		this.compatibilityReasonCode = compatibilityReasonCode;
+		this.compatibilityReason = compatibilityReason;
 	}
 
 	public static PluginArtifactValidationResult valid()
@@ -47,7 +67,7 @@ public final class PluginArtifactValidationResult
 
 	public static PluginArtifactValidationResult invalid(List<String> errors)
 	{
-		return new PluginArtifactValidationResult(errors, Collections.emptyList(), null, null, null, null);
+		return new PluginArtifactValidationResult(errors, Collections.emptyList(), null, null, null, null, null, null, null, null, null);
 	}
 
 	public static PluginArtifactValidationResult signature(
@@ -64,7 +84,35 @@ public final class PluginArtifactValidationResult
 			signatureClassification,
 			signaturePolicyAction,
 			signatureReasonCode,
-			signatureReason);
+			signatureReason,
+			null,
+			null,
+			null,
+			null,
+			null);
+	}
+
+	public static PluginArtifactValidationResult compatibility(
+		List<String> errors,
+		List<String> warnings,
+		Integer pluginApiVersion,
+		Integer clientPluginApiVersion,
+		String compatibilityPolicyAction,
+		String compatibilityReasonCode,
+		String compatibilityReason)
+	{
+		return new PluginArtifactValidationResult(
+			errors,
+			warnings,
+			null,
+			null,
+			null,
+			null,
+			pluginApiVersion,
+			clientPluginApiVersion,
+			compatibilityPolicyAction,
+			compatibilityReasonCode,
+			compatibilityReason);
 	}
 
 	public boolean isValid()
@@ -100,5 +148,30 @@ public final class PluginArtifactValidationResult
 	public String getSignatureReason()
 	{
 		return signatureReason;
+	}
+
+	public Integer getPluginApiVersion()
+	{
+		return pluginApiVersion;
+	}
+
+	public Integer getClientPluginApiVersion()
+	{
+		return clientPluginApiVersion;
+	}
+
+	public String getCompatibilityPolicyAction()
+	{
+		return compatibilityPolicyAction;
+	}
+
+	public String getCompatibilityReasonCode()
+	{
+		return compatibilityReasonCode;
+	}
+
+	public String getCompatibilityReason()
+	{
+		return compatibilityReason;
 	}
 }

@@ -85,6 +85,11 @@ export interface BridgePluginArtifact {
   metadataSource: string;
   entryClasses: string[];
   minClientVersion: string | null;
+  pluginApiVersion: number | null;
+  clientPluginApiVersion: number;
+  compatibilityPolicyAction: "allow" | "warn" | "block";
+  compatibilityReasonCode: "plugin_api_compatible" | "plugin_api_too_new" | "plugin_api_retired" | "client_version_too_old" | "plugin_api_missing" | "plugin_api_malformed";
+  compatibilityReason: string;
   checksumSha256: string | null;
   signature: string | null;
   installed: boolean;

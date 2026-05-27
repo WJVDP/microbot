@@ -103,8 +103,11 @@ public class PluginRuntime implements PluginRuntimeService
 		for (PluginArtifact artifact : artifacts)
 		{
 			PluginArtifactValidationResult verification = verifier.verify(artifact);
+			PluginArtifactValidationResult compatibility = validator.validateCompatibility(artifact);
 			List<String> errors = new ArrayList<>(verification.getErrors());
 			List<String> warnings = new ArrayList<>(verification.getWarnings());
+			errors.addAll(compatibility.getErrors());
+			warnings.addAll(compatibility.getWarnings());
 			CapabilityStatus capabilityStatus = PluginCapabilityPolicy.evaluate(artifact);
 			if (capabilityStatus.warning)
 			{
@@ -114,7 +117,13 @@ public class PluginRuntime implements PluginRuntimeService
 			{
 				errors.add(capabilityStatus.reason);
 			}
-			errors.addAll(validator.validate(artifact).getErrors());
+			for (String error : validator.validate(artifact).getErrors())
+			{
+				if (!error.startsWith(PluginArtifactValidator.CLIENT_VERSION_ERROR_PREFIX))
+				{
+					errors.add(error);
+				}
+			}
 			if (idCounts.getOrDefault(artifact.getId(), 0) > 1)
 			{
 				errors.add(DUPLICATE_ID_ERROR_PREFIX + artifact.getId());
@@ -128,6 +137,11 @@ public class PluginRuntime implements PluginRuntimeService
 				verification.getSignaturePolicyAction(),
 				verification.getSignatureReasonCode(),
 				verification.getSignatureReason(),
+				compatibility.getPluginApiVersion(),
+				compatibility.getClientPluginApiVersion(),
+				compatibility.getCompatibilityPolicyAction(),
+				compatibility.getCompatibilityReasonCode(),
+				compatibility.getCompatibilityReason(),
 				capabilityStatus.state,
 				capabilityStatus.capabilities,
 				capabilityStatus.restrictedCapabilities,

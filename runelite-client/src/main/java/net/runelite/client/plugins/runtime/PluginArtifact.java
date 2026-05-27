@@ -28,6 +28,8 @@ public final class PluginArtifact
 	private final List<String> entryClasses;
 	@Nullable
 	private final String minClientVersion;
+	@Nullable
+	private final String pluginApiVersion;
 	private final boolean disabled;
 	private final boolean malformedManifest;
 	@Nullable
@@ -44,6 +46,7 @@ public final class PluginArtifact
 		@Nullable File artifactFile,
 		List<String> entryClasses,
 		@Nullable String minClientVersion,
+		@Nullable String pluginApiVersion,
 		boolean disabled,
 		boolean malformedManifest,
 		@Nullable PluginCapabilityManifest capabilityManifest)
@@ -58,6 +61,7 @@ public final class PluginArtifact
 		this.artifactFile = artifactFile;
 		this.entryClasses = Collections.unmodifiableList(new ArrayList<>(entryClasses));
 		this.minClientVersion = emptyToNull(minClientVersion);
+		this.pluginApiVersion = emptyToNull(pluginApiVersion);
 		this.disabled = disabled;
 		this.malformedManifest = malformedManifest;
 		this.capabilityManifest = capabilityManifest;
@@ -122,6 +126,12 @@ public final class PluginArtifact
 		return minClientVersion;
 	}
 
+	@Nullable
+	public String getPluginApiVersion()
+	{
+		return pluginApiVersion;
+	}
+
 	public boolean isDisabled()
 	{
 		return disabled;
@@ -165,6 +175,7 @@ public final class PluginArtifact
 		private File artifactFile;
 		private List<String> entryClasses = Collections.emptyList();
 		private String minClientVersion;
+		private String pluginApiVersion;
 		private boolean disabled;
 		private boolean malformedManifest;
 		private PluginCapabilityManifest capabilityManifest;
@@ -229,6 +240,18 @@ public final class PluginArtifact
 			return this;
 		}
 
+		public Builder pluginApiVersion(int pluginApiVersion)
+		{
+			this.pluginApiVersion = Integer.toString(pluginApiVersion);
+			return this;
+		}
+
+		public Builder pluginApiVersion(String pluginApiVersion)
+		{
+			this.pluginApiVersion = pluginApiVersion;
+			return this;
+		}
+
 		public Builder disabled(boolean disabled)
 		{
 			this.disabled = disabled;
@@ -260,6 +283,7 @@ public final class PluginArtifact
 				artifactFile,
 				entryClasses,
 				minClientVersion,
+				pluginApiVersion,
 				disabled,
 				malformedManifest,
 				capabilityManifest);

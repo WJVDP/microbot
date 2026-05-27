@@ -46,6 +46,7 @@ public class CorePluginRepository implements PluginRepository
 			.displayName(displayName)
 			.entryClasses(pluginClass.getName())
 			.metadataSource(PluginArtifactMetadataSource.CORE_ANNOTATION)
+			.pluginApiVersion(descriptor == null ? null : Integer.toString(descriptor.pluginApiVersion()))
 			.disabled(descriptor != null && descriptor.disable())
 			.build();
 	}

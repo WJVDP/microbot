@@ -235,6 +235,7 @@ public class MicrobotPluginManager {
                 .displayName(descriptor.name())
                 .entryClasses(clazz.getName())
                 .minClientVersion(descriptor.isExternal() ? descriptor.minClientVersion() : null)
+                .pluginApiVersion(descriptor.pluginApiVersion())
                 .disabled(descriptor.disable())
                 .build());
     }
@@ -245,6 +246,7 @@ public class MicrobotPluginManager {
                 .version(manifest.getVersion())
                 .checksumSha256(manifest.getSha256())
                 .minClientVersion(manifest.getMinClientVersion())
+                .pluginApiVersion(manifest.getPluginApiVersion())
                 .disabled(manifest.isDisable())
                 .build());
     }

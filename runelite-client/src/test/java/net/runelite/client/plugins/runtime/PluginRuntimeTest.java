@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -25,6 +26,96 @@ public class PluginRuntimeTest
 {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Test
+	public void discoveryStatusReportsCompatiblePluginApiVersion() throws Exception
+	{
+		PluginArtifact artifact = loadableHubArtifact("compatible")
+			.pluginApiVersion(1)
+			.build();
+		PluginRuntimeArtifactStatus status = statusFor(artifact, new PluginArtifactValidator(version -> true));
+
+		assertTrue(status.isLoadable());
+		assertEquals(Integer.valueOf(1), status.getPluginApiVersion());
+		assertEquals(Integer.valueOf(1), status.getClientPluginApiVersion());
+		assertEquals("allow", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_COMPATIBLE, status.getCompatibilityReasonCode());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON, status.getCompatibilityReason());
+	}
+
+	@Test
+	public void discoveryStatusWarnsAndUsesLegacyVersionForMissingPluginApiVersion() throws Exception
+	{
+		PluginArtifact artifact = loadableLocalArtifact("legacy").build();
+		PluginRuntimeArtifactStatus status = statusFor(artifact, new PluginArtifactValidator(version -> true));
+
+		assertTrue(status.isLoadable());
+		assertEquals(Integer.valueOf(1), status.getPluginApiVersion());
+		assertEquals("warn", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_MISSING, status.getCompatibilityReasonCode());
+		assertTrue(status.getWarnings().contains(PluginArtifactValidator.PLUGIN_API_MISSING_REASON));
+	}
+
+	@Test
+	public void discoveryStatusBlocksMalformedPluginApiVersionForEverySource() throws Exception
+	{
+		PluginArtifact artifact = loadableLocalArtifact("malformed")
+			.pluginApiVersion("future")
+			.build();
+		PluginRuntimeArtifactStatus status = statusFor(artifact, new PluginArtifactValidator(version -> true));
+
+		assertFalse(status.isLoadable());
+		assertEquals("block", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_MALFORMED, status.getCompatibilityReasonCode());
+		assertTrue(status.getErrors().contains(PluginArtifactValidator.PLUGIN_API_MALFORMED_REASON));
+	}
+
+	@Test
+	public void discoveryStatusBlocksTooNewPluginApiVersionForEverySource() throws Exception
+	{
+		PluginArtifact artifact = loadableLocalArtifact("too-new")
+			.pluginApiVersion(2)
+			.build();
+		PluginRuntimeArtifactStatus status = statusFor(artifact, new PluginArtifactValidator(version -> true));
+
+		assertFalse(status.isLoadable());
+		assertEquals(Integer.valueOf(2), status.getPluginApiVersion());
+		assertEquals("block", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_TOO_NEW, status.getCompatibilityReasonCode());
+		assertTrue(status.getErrors().contains(PluginArtifactValidator.PLUGIN_API_TOO_NEW_REASON));
+	}
+
+	@Test
+	public void discoveryStatusBlocksRetiredPluginApiVersion() throws Exception
+	{
+		PluginArtifact artifact = loadableHubArtifact("retired")
+			.pluginApiVersion(1)
+			.build();
+		PluginRuntimeArtifactStatus status = statusFor(
+			artifact,
+			new PluginArtifactValidator(version -> true, 2, new HashSet<>(Collections.singletonList(1))));
+
+		assertFalse(status.isLoadable());
+		assertEquals("block", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.PLUGIN_API_RETIRED, status.getCompatibilityReasonCode());
+		assertTrue(status.getErrors().contains(PluginArtifactValidator.PLUGIN_API_RETIRED_REASON));
+	}
+
+	@Test
+	public void discoveryStatusReportsClientTooOldThroughCompatibilityStatus() throws Exception
+	{
+		PluginArtifact artifact = loadableHubArtifact("client-too-old")
+			.pluginApiVersion(1)
+			.minClientVersion("999.0.0")
+			.build();
+		PluginRuntimeArtifactStatus status = statusFor(artifact, new PluginArtifactValidator("1.0.0"::equals));
+
+		assertFalse(status.isLoadable());
+		assertEquals("block", status.getCompatibilityPolicyAction());
+		assertEquals(PluginArtifactValidator.CLIENT_VERSION_TOO_OLD, status.getCompatibilityReasonCode());
+		assertEquals(PluginArtifactValidator.CLIENT_VERSION_TOO_OLD_REASON, status.getCompatibilityReason());
+		assertEquals(Collections.singletonList(PluginArtifactValidator.CLIENT_VERSION_ERROR_PREFIX + "999.0.0"), status.getErrors());
+	}
 
 	@Test
 	public void discoversArtifactsFromRepositoriesInOrder() throws Exception
@@ -280,6 +371,7 @@ public class PluginRuntimeTest
 	{
 		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local-unsigned")
 			.entryClasses("local.Plugin")
+			.pluginApiVersion(1)
 			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local-unsigned"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(Collections.singletonList(
@@ -455,6 +547,7 @@ public class PluginRuntimeTest
 			.artifactFile(jar)
 			.signature("signature")
 			.entryClasses("local.Plugin")
+			.pluginApiVersion(1)
 			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local-invalid"))
 			.build();
 		PluginRuntime runtime = new PluginRuntime(
@@ -515,6 +608,31 @@ public class PluginRuntimeTest
 		return PluginCapabilityManifest.builder(id, id, "1.0.0", source)
 			.capabilities(Collections.singletonList("game_state.read"))
 			.build();
+	}
+
+	private static PluginRuntimeArtifactStatus statusFor(PluginArtifact artifact, PluginArtifactValidator validator) throws Exception
+	{
+		return new PluginRuntime(
+			Collections.singletonList(new StaticRepository(artifact.getSource(), Collections.singletonList(artifact))),
+			validator)
+			.discoverStatus()
+			.getArtifacts()
+			.get(0);
+	}
+
+	private static PluginArtifact.Builder loadableHubArtifact(String id)
+	{
+		return PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, id)
+			.entryClasses(id + ".Plugin")
+			.signature("test")
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, id));
+	}
+
+	private static PluginArtifact.Builder loadableLocalArtifact(String id)
+	{
+		return PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, id)
+			.entryClasses(id + ".Plugin")
+			.capabilityManifest(capabilities(PluginArtifactSource.LOCAL_DIRECTORY, id));
 	}
 
 	private static final class StaticRepository implements PluginRepository

@@ -83,6 +83,11 @@ public class MicrobotPluginManifest {
     private String minClientVersion;
 
     /**
+     * Microbot Plugin API Compatibility Version targeted by this plugin.
+     */
+    private String pluginApiVersion;
+
+    /**
      * SHA256 hash of the plugin JAR
      */
     private String sha256;

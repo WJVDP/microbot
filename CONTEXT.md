@@ -28,6 +28,18 @@ _Avoid_: Stable, beta
 The source-aware trust policy used by Plugin Runtime V2 to classify plugin artifacts by signature state, provenance, and source. It governs plugin artifact status and lifecycle decisions, not the public client release artifact.
 _Avoid_: Release signing, CI release signing
 
+**Plugin API Compatibility Version**:
+A project-owned compatibility boundary for plugin-facing Microbot client contracts. It changes when plugin authors may need to adapt to client API, runtime, metadata, or bridge contract changes, and is distinct from the published Microbot client version.
+_Avoid_: Client version, plugin version, release version
+
+**Plugin Compatibility Boundary**:
+A plugin-facing client contract change that may require plugin authors to retest or adapt their plugins. Internal refactors, release workflow changes, and additive behavior that preserves existing plugin behavior are not compatibility boundaries.
+_Avoid_: Release boundary, build boundary, version bump
+
+**Legacy Plugin API Compatibility**:
+The temporary compatibility treatment for plugin artifacts that do not yet declare a Plugin API Compatibility Version. It lets existing plugin artifacts be interpreted as targeting the first compatibility boundary during a migration window.
+_Avoid_: Permanent default compatibility, unknown compatibility
+
 ## Example Dialogue
 
 Dev: "Do we need release signing before publishing the stable jar?"
@@ -57,3 +69,15 @@ Maintainer: "No. Beta and nightly artifacts should use channel-specific names so
 Dev: "Where does a beta build come from?"
 
 Maintainer: "From an explicit beta workflow for a chosen release-candidate ref, not from nightly automation."
+
+Dev: "Does every new Microbot client release require plugin authors to update compatibility metadata?"
+
+Maintainer: "No. Plugin authors track the Plugin API Compatibility Version for plugin-facing contract changes, and use minimum client versions only when they need a specific client build."
+
+Dev: "Does a release-signing workflow change create a plugin compatibility boundary?"
+
+Maintainer: "No. Compatibility boundaries are about plugin-facing client contracts, not how client artifacts are published."
+
+Dev: "What do we call a plugin that has no plugin API compatibility metadata yet?"
+
+Maintainer: "Legacy Plugin API Compatibility. It is a temporary migration state, not the long-term authoring model."

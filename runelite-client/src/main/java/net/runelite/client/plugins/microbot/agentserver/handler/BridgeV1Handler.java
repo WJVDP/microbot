@@ -588,6 +588,11 @@ public class BridgeV1Handler extends AgentHandler
 		dto.put("installed", artifact.getArtifactFile() != null);
 		dto.put("loadable", status.isLoadable());
 		dto.put("warnings", status.getWarnings());
+		dto.put("pluginApiVersion", status.getPluginApiVersion());
+		dto.put("clientPluginApiVersion", status.getClientPluginApiVersion());
+		dto.put("compatibilityPolicyAction", status.getCompatibilityPolicyAction());
+		dto.put("compatibilityReasonCode", status.getCompatibilityReasonCode());
+		dto.put("compatibilityReason", status.getCompatibilityReason());
 		dto.put("signatureClassification", status.getSignatureClassification() == null ? null : status.getSignatureClassification().name());
 		dto.put("signaturePolicyAction", status.getSignaturePolicyAction());
 		dto.put("signatureReasonCode", status.getSignatureReasonCode());

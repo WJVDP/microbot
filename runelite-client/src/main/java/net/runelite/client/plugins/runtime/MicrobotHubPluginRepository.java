@@ -60,6 +60,7 @@ public class MicrobotHubPluginRepository implements PluginRepository
 			.version(manifest.getVersion())
 			.checksumSha256(manifest.getSha256())
 			.minClientVersion(manifest.getMinClientVersion())
+			.pluginApiVersion(manifest.getPluginApiVersion())
 			.disabled(manifest.isDisable())
 			.metadataSource(PluginArtifactMetadataSource.HUB_MANIFEST);
 

@@ -142,6 +142,11 @@ Hub artifacts.
       "installed": true,
       "loadable": true,
       "warnings": [],
+      "pluginApiVersion": 1,
+      "clientPluginApiVersion": 1,
+      "compatibilityPolicyAction": "allow",
+      "compatibilityReasonCode": "plugin_api_compatible",
+      "compatibilityReason": "Plugin API version is supported.",
       "signatureClassification": "TRUSTED_MICROBOT",
       "signaturePolicyAction": "allow",
       "signatureReasonCode": "trusted_microbot",
@@ -157,6 +162,11 @@ Hub artifacts.
   ]
 }
 ```
+
+Compatibility status values come from Runtime V2 policy evaluation. Bridge V1
+reports the plugin's declared Plugin API Compatibility Version, the client's
+supported compatibility version, and concise compatibility action/reason fields.
+See `docs/plugin-api-compatibility.md` for the policy and author guidance.
 
 Signature status values come from Runtime V2 policy evaluation. Unsigned local
 plugins are reported as warning-only `UNSIGNED_LOCAL`; official-channel

@@ -16,6 +16,11 @@ public final class PluginRuntimeArtifactStatus
 	private final String signaturePolicyAction;
 	private final String signatureReasonCode;
 	private final String signatureReason;
+	private final Integer pluginApiVersion;
+	private final Integer clientPluginApiVersion;
+	private final String compatibilityPolicyAction;
+	private final String compatibilityReasonCode;
+	private final String compatibilityReason;
 	private final PluginCapabilityState capabilityState;
 	private final List<String> capabilities;
 	private final List<String> restrictedCapabilities;
@@ -25,7 +30,7 @@ public final class PluginRuntimeArtifactStatus
 
 	PluginRuntimeArtifactStatus(PluginArtifact artifact, List<String> errors)
 	{
-		this(artifact, errors, Collections.emptyList(), null, null, null, null,
+		this(artifact, errors, Collections.emptyList(), null, null, null, null, null, null, null, null, null,
 			PluginCapabilityState.MISSING, Collections.emptyList(), Collections.emptyList(), null, null, null);
 	}
 
@@ -37,6 +42,11 @@ public final class PluginRuntimeArtifactStatus
 		String signaturePolicyAction,
 		String signatureReasonCode,
 		String signatureReason,
+		Integer pluginApiVersion,
+		Integer clientPluginApiVersion,
+		String compatibilityPolicyAction,
+		String compatibilityReasonCode,
+		String compatibilityReason,
 		PluginCapabilityState capabilityState,
 		List<String> capabilities,
 		List<String> restrictedCapabilities,
@@ -51,6 +61,11 @@ public final class PluginRuntimeArtifactStatus
 		this.signaturePolicyAction = signaturePolicyAction;
 		this.signatureReasonCode = signatureReasonCode;
 		this.signatureReason = signatureReason;
+		this.pluginApiVersion = pluginApiVersion;
+		this.clientPluginApiVersion = clientPluginApiVersion;
+		this.compatibilityPolicyAction = compatibilityPolicyAction;
+		this.compatibilityReasonCode = compatibilityReasonCode;
+		this.compatibilityReason = compatibilityReason;
 		this.capabilityState = capabilityState;
 		this.capabilities = Collections.unmodifiableList(capabilities);
 		this.restrictedCapabilities = Collections.unmodifiableList(restrictedCapabilities);
@@ -97,6 +112,31 @@ public final class PluginRuntimeArtifactStatus
 	public String getSignatureReason()
 	{
 		return signatureReason;
+	}
+
+	public Integer getPluginApiVersion()
+	{
+		return pluginApiVersion;
+	}
+
+	public Integer getClientPluginApiVersion()
+	{
+		return clientPluginApiVersion;
+	}
+
+	public String getCompatibilityPolicyAction()
+	{
+		return compatibilityPolicyAction;
+	}
+
+	public String getCompatibilityReasonCode()
+	{
+		return compatibilityReasonCode;
+	}
+
+	public String getCompatibilityReason()
+	{
+		return compatibilityReason;
 	}
 
 	public PluginCapabilityState getCapabilityState()
