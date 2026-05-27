@@ -46,11 +46,26 @@ For changes that touch launcher, packaging, or dependency metadata, also run:
 - Stable releases publish `microbot-<version>.jar`,
   `microbot-<version>.jar.sha256`, `microbot-<version>.jar.bundle`, cosign
   verification material, and `update-stable.json`.
+- Beta releases publish `microbot-beta-<version>.jar`,
+  `microbot-beta-<version>.jar.sha256`, and `update-beta.json`.
+- Nightly releases publish `microbot-nightly-<version>.jar`,
+  `microbot-nightly-<version>.jar.sha256`, and `update-nightly.json`.
 - Generate checksum and update metadata locally with:
 
 ```bash
 scripts/generate-release-metadata.sh stable <version> runelite-client/build/libs/microbot-<version>.jar https://files.microbot.cloud/releases/microbot/stable
 ```
+
+- Validate generated channel artifacts before publication with:
+
+```bash
+scripts/validate-release-artifacts.sh stable <version> runelite-client/build/libs/microbot-<version>.jar
+```
+
+The validator checks update metadata JSON shape, expected channel download URLs,
+artifact checksum consistency, artifact size, and required stable cosign bundle.
+Beta and nightly validation ignores signatures until those channels have an
+accepted signing policy.
 
 - Signing is required before publishing a public release.
 - Stable release signing uses keyless Sigstore/cosign signing from GitHub
@@ -146,13 +161,16 @@ Do not silently rewrite or delete published release tags.
 ## Release Channels
 
 - `stable`: built from `main` by `.github/workflows/release.yml`.
-- `beta`: reserved for release candidates; publish `microbot-beta-<version>.jar`,
-  its SHA-256 file, and `update-beta.json` from an explicit beta workflow before
-  exposing to end users. The GitHub `beta` release tag is a moving channel tag.
-- `nightly`: built by nightly workflows and should publish
-  `microbot-nightly-<version>.jar`, its SHA-256 file, and
-  `update-nightly.json`. The GitHub `nightly` release tag is a moving channel
-  tag.
+- `beta`: built by manually running `.github/workflows/beta.yml` with an
+  explicit release-candidate ref. It publishes to the moving GitHub `beta`
+  release tag and beta file-hosting path.
+- `nightly`: built by scheduled and manual nightly workflows from the
+  development line. It publishes to the moving GitHub `nightly` release tag and
+  nightly file-hosting path.
+
+Beta and nightly publish checksums and update metadata, but they do not publish
+release signatures or cosign bundles. Initial release signing applies only to
+stable until a separate beta/nightly signing policy is accepted.
 
 Rollback behavior is metadata-forward: publish a newer channel metadata file
 that points back to the previous known-good artifact and checksum. Do not

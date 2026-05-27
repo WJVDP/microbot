@@ -1,29 +1,25 @@
-name: Manual Nightly release
+name: Beta release
 
 on:
   workflow_dispatch:
     inputs:
-      parameter:
-        description: branch
+      release_candidate_ref:
+        description: Release candidate branch, tag, or commit SHA
+        required: true
+        type: string
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # You can choose a different runner if needed
-    permissions: write-all
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Specify the branch you want
-          ref: development
+          ref: ${{ inputs.release_candidate_ref }}
           fetch-depth: 0
-
-      - name: Force sync with latest development
-        run: |
-          git fetch origin development
-          git checkout development
-          git reset --hard origin/development
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -52,42 +48,42 @@ jobs:
       - name: Prepare artifact name
         run: |
           SRC=$(echo runelite-client/build/libs/client-*-shaded.jar)
-          DEST=runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar
+          DEST=runelite-client/build/libs/microbot-beta-${{ steps.version.outputs.version }}.jar
           cp "$SRC" "$DEST"
 
       - name: Generate release metadata
         run: |
           scripts/generate-release-metadata.sh \
-            nightly \
+            beta \
             "${{ steps.version.outputs.version }}" \
-            "runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar" \
-            "https://files.microbot.cloud/releases/microbot/nightly"
+            "runelite-client/build/libs/microbot-beta-${{ steps.version.outputs.version }}.jar" \
+            "https://files.microbot.cloud/releases/microbot/beta"
 
       - name: Validate release artifacts
         run: |
           scripts/validate-release-artifacts.sh \
-            nightly \
+            beta \
             "${{ steps.version.outputs.version }}" \
-            "runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar"
+            "runelite-client/build/libs/microbot-beta-${{ steps.version.outputs.version }}.jar"
 
       - name: Create Release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "nightly"
-          prerelease: false
-          title: "Nightly Build"
+          automatic_release_tag: "beta"
+          prerelease: true
+          title: "Beta Build"
           files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-nightly-*.jar
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-nightly-*.jar.sha256
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-nightly.json
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-beta-*.jar
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-beta-*.jar.sha256
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-beta.json
 
-      - name: Upload nightly artifacts to Hetzner
+      - name: Upload beta artifacts to Hetzner
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_HOST }}
           username: root
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: runelite-client/build/libs/microbot-nightly-*.jar,runelite-client/build/libs/microbot-nightly-*.jar.sha256,runelite-client/build/libs/update-nightly.json
-          target: /var/www/files/releases/microbot/nightly/
+          source: runelite-client/build/libs/microbot-beta-*.jar,runelite-client/build/libs/microbot-beta-*.jar.sha256,runelite-client/build/libs/update-beta.json
+          target: /var/www/files/releases/microbot/beta/
           strip_components: 3

@@ -46,6 +46,9 @@ grep -q -- '--draft' "$workflow" \
 grep -q 'microbot-${{ steps.version.outputs.version }}.jar.bundle' "$workflow" \
   || fail "GitHub Release upload must include microbot-*.jar.bundle"
 
+grep -q 'scripts/validate-release-artifacts.sh[[:space:]]*stable' "$workflow" \
+  || fail "release workflow must run validate-release-artifacts.sh stable before publication"
+
 scp_sources=$(grep -E 'source: .*microbot-\*\.jar\.bundle' "$workflow" || true)
 [ -n "$scp_sources" ] \
   || fail "stable file hosting upload must include microbot-*.jar.bundle"

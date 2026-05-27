@@ -80,6 +80,10 @@ jobs:
           cosign sign-blob --yes --bundle "$BUNDLE" "$JAR"
           test -s "$BUNDLE"
 
+      - name: Validate release artifacts
+        run: |
+          scripts/validate-release-artifacts.sh stable "${{ steps.version.outputs.version }}" "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar"
+
       - name: Create draft GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
