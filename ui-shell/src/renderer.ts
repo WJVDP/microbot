@@ -80,6 +80,10 @@ function classifyArtifact(artifact: BridgePluginArtifact): string {
 }
 
 function artifactSummary(artifact: BridgePluginArtifact): string {
+  if (artifact.capability_policy_action === "warn") {
+    return artifact.capability_reason_message;
+  }
+
   if (artifact.errors.length > 0) {
     return artifact.errors.join(", ");
   }
@@ -89,6 +93,26 @@ function artifactSummary(artifact: BridgePluginArtifact): string {
   }
 
   return "Blocked by runtime validation";
+}
+
+function capabilityTagClass(artifact: BridgePluginArtifact): string {
+  if (artifact.capability_policy_action === "block") {
+    return "blocked";
+  }
+
+  if (artifact.capability_policy_action === "warn") {
+    return "warn";
+  }
+
+  return artifact.capability_state === "normal" ? "ok" : artifact.capability_state;
+}
+
+function capabilitySummary(artifact: BridgePluginArtifact): string {
+  const capabilities = artifact.capabilities.length > 0 ? artifact.capabilities.join(", ") : "No capabilities declared";
+  const restricted = artifact.restricted_capabilities.length > 0
+    ? ` Restricted: ${artifact.restricted_capabilities.join(", ")}.`
+    : "";
+  return `${artifact.capability_reason_message} ${capabilities}.${restricted}`;
 }
 
 async function readError(response: Response): Promise<string> {
@@ -289,6 +313,10 @@ function renderArtifacts(): string {
           <span>${h(artifact.id)}</span>
         </td>
         <td><span class="tag ${classifyArtifact(artifact)}">${h(classifyArtifact(artifact))}</span></td>
+        <td>
+          <span class="tag ${capabilityTagClass(artifact)}">${h(artifact.capability_state)}</span>
+          <span>${h(capabilitySummary(artifact))}</span>
+        </td>
         <td>${h(artifact.source)}</td>
         <td>${h(artifact.version ?? "n/a")}</td>
         <td>${h(artifactSummary(artifact))}</td>
@@ -308,12 +336,13 @@ function renderArtifacts(): string {
             <tr>
               <th>Artifact</th>
               <th>Status</th>
+              <th>Capabilities</th>
               <th>Source</th>
               <th>Version</th>
               <th>Reason</th>
             </tr>
           </thead>
-          <tbody>${rows || `<tr><td colspan="5" class="empty">No artifacts returned by Bridge V1.</td></tr>`}</tbody>
+          <tbody>${rows || `<tr><td colspan="6" class="empty">No artifacts returned by Bridge V1.</td></tr>`}</tbody>
         </table>
       </div>
     </section>

@@ -38,5 +38,8 @@ jobs:
         with:
           gradle-version: wrapper
 
+      - name: Validate release signing workflow
+        run: scripts/test-release-signing-validation.sh
+
       - name: Build and Test
         run: ./ci/build.sh

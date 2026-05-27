@@ -54,6 +54,9 @@ jobs:
             "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar" \
             "https://files.microbot.cloud/releases/microbot/stable"
 
+      - name: Validate release signing workflow
+        run: scripts/validate-release-signing.sh .github/workflows/release.yml
+
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
@@ -67,9 +70,6 @@ jobs:
           fi
           cosign sign-blob --yes --bundle "$BUNDLE" "$JAR"
           test -s "$BUNDLE"
-
-      - name: Validate release signing workflow
-        run: scripts/validate-release-signing.sh .github/workflows/release.yml
 
       - name: Create Release
         uses: "marvinpinto/action-automatic-releases@latest"

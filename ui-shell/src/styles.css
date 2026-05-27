@@ -247,6 +247,14 @@ td span:not(.tag) {
   color: #2457a6;
 }
 
+.tag.warn,
+.tag.missing,
+.tag.unknown,
+.tag.restricted {
+  background: #fff7df;
+  color: #7a4b00;
+}
+
 .tag.bad,
 .tag.blocked {
   background: #fff0ed;

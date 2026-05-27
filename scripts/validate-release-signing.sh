@@ -8,8 +8,19 @@ fail() {
   exit 1
 }
 
-grep -qE '^[[:space:]]+id-token:[[:space:]]+write[[:space:]]*$' "$workflow" \
-  || fail "release workflow must grant id-token: write for keyless cosign signing"
+build_permissions=$(awk '
+  /^[[:space:]]+build:[[:space:]]*$/ { in_build=1; next }
+  in_build && /^[[:space:]]{2}[A-Za-z0-9_-]+:[[:space:]]*$/ { exit }
+  in_build && /^[[:space:]]{4}permissions:[[:space:]]*$/ { in_permissions=1; next }
+  in_permissions && /^[[:space:]]{4}[A-Za-z0-9_-]+:/ { exit }
+  in_permissions { print }
+' "$workflow")
+
+printf '%s\n' "$build_permissions" | grep -qE '^[[:space:]]+id-token:[[:space:]]+write[[:space:]]*$' \
+  || fail "release workflow must grant id-token: write in build permissions for keyless cosign signing"
+
+printf '%s\n' "$build_permissions" | grep -qE '^[[:space:]]+contents:[[:space:]]+write[[:space:]]*$' \
+  || fail "release workflow must grant contents: write in build permissions for release publication"
 
 grep -q 'sigstore/cosign-installer' "$workflow" \
   || fail "release workflow must install cosign"
