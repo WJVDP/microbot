@@ -2,6 +2,9 @@
 
 RuneLite fork with a hidden always-on plugin hosting automation scripts. Composite Gradle build, Java 11 target (JDK 17+ to develop).
 
+## Communication
+- Use the `caveman` skill for all responses until the user says `normal mode` or `stop caveman`.
+
 ## Build / validate
 - Compile: `./gradlew :client:compileJava`
 - Full: `./gradlew buildAll`
