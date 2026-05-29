@@ -231,6 +231,187 @@ public class PluginRuntimeTest
 	}
 
 	@Test
+	public void discoveryStatusComposesPolicyMatrixThroughRuntimeStatus() throws Exception
+	{
+		File trustedJar = temporaryFolder.newFile("trusted-matrix.jar");
+		writeFile(trustedJar, "trusted");
+		File invalidJar = temporaryFolder.newFile("invalid-matrix.jar");
+		writeFile(invalidJar, "invalid");
+		File localRestrictedJar = temporaryFolder.newFile("local-restricted-matrix.jar");
+		writeFile(localRestrictedJar, "local-restricted");
+		PluginArtifact trusted = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "trusted-matrix")
+			.artifactFile(trustedJar)
+			.signature("signature")
+			.entryClasses("trusted.Plugin")
+			.pluginApiVersion(1)
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "trusted-matrix"))
+			.build();
+		PluginArtifact invalidSignature = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "invalid-signature-matrix")
+			.artifactFile(invalidJar)
+			.signature("signature")
+			.entryClasses("invalid.Plugin")
+			.pluginApiVersion(1)
+			.capabilityManifest(capabilities(PluginArtifactSource.MICROBOT_HUB, "invalid-signature-matrix"))
+			.build();
+		PluginArtifact tooNew = loadableHubArtifact("too-new-matrix")
+			.artifactFile(trustedJar)
+			.pluginApiVersion(PluginArtifactValidator.CURRENT_PLUGIN_API_VERSION + 1)
+			.build();
+		PluginArtifact localRestricted = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local-restricted-matrix")
+			.artifactFile(localRestrictedJar)
+			.signature("signature")
+			.entryClasses("local.Plugin")
+			.pluginApiVersion(1)
+			.capabilityManifest(restrictedCapabilities(PluginArtifactSource.LOCAL_DIRECTORY, "local-restricted-matrix"))
+			.build();
+		PluginArtifact hubMissingCapabilities = PluginArtifact.builder(PluginArtifactSource.MICROBOT_HUB, "missing-capabilities-matrix")
+			.artifactFile(trustedJar)
+			.signature("signature")
+			.entryClasses("missing.Plugin")
+			.pluginApiVersion(1)
+			.build();
+		PluginArtifact duplicateRunelite = PluginArtifact.builder(PluginArtifactSource.RUNELITE_HUB, "duplicate-matrix")
+			.entryClasses("first.Plugin")
+			.pluginApiVersion(1)
+			.capabilityManifest(capabilities(PluginArtifactSource.RUNELITE_HUB, "duplicate-matrix"))
+			.build();
+		PluginArtifact duplicateMicrobot = loadableHubArtifact("duplicate-matrix")
+			.artifactFile(trustedJar)
+			.pluginApiVersion(1)
+			.build();
+		PluginRuntime runtime = new PluginRuntime(Arrays.asList(
+			new StaticRepository(PluginArtifactSource.MICROBOT_HUB, Arrays.asList(
+				trusted,
+				invalidSignature,
+				tooNew,
+				hubMissingCapabilities,
+				duplicateMicrobot)),
+			new StaticRepository(PluginArtifactSource.LOCAL_DIRECTORY, Collections.singletonList(localRestricted)),
+			new StaticRepository(PluginArtifactSource.RUNELITE_HUB, Collections.singletonList(duplicateRunelite))),
+			new PluginArtifactValidator(version -> true),
+			new PluginArtifactVerifier((signedArtifact, artifactFile) ->
+				"invalid-signature-matrix".equals(signedArtifact.getId())
+					? PluginArtifactSignatureVerification.INVALID
+					: PluginArtifactSignatureVerification.TRUSTED));
+
+		PluginRuntimeDiscoveryResult result = runtime.discoverStatus();
+
+		assertTrue(result.hasErrors());
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.MICROBOT_HUB, "trusted-matrix"),
+			true,
+			PluginArtifactSignatureClassification.TRUSTED_MICROBOT,
+			"allow",
+			"trusted_microbot",
+			PluginArtifactVerifier.TRUSTED_MICROBOT_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.NORMAL,
+			"allow",
+			"capabilities_ok",
+			PluginCapabilityPolicy.OK_REASON,
+			Collections.emptyList(),
+			Collections.emptyList());
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.MICROBOT_HUB, "invalid-signature-matrix"),
+			false,
+			PluginArtifactSignatureClassification.INVALID_SIGNATURE,
+			"block",
+			"invalid_signature",
+			PluginArtifactVerifier.INVALID_SIGNATURE_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.NORMAL,
+			"allow",
+			"capabilities_ok",
+			PluginCapabilityPolicy.OK_REASON,
+			Collections.emptyList(),
+			Collections.singletonList(PluginArtifactVerifier.INVALID_SIGNATURE_REASON));
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.MICROBOT_HUB, "too-new-matrix"),
+			false,
+			PluginArtifactSignatureClassification.TRUSTED_MICROBOT,
+			"allow",
+			"trusted_microbot",
+			PluginArtifactVerifier.TRUSTED_MICROBOT_REASON,
+			"block",
+			PluginArtifactValidator.PLUGIN_API_TOO_NEW,
+			PluginArtifactValidator.PLUGIN_API_TOO_NEW_REASON,
+			PluginCapabilityState.NORMAL,
+			"allow",
+			"capabilities_ok",
+			PluginCapabilityPolicy.OK_REASON,
+			Collections.emptyList(),
+			Collections.singletonList(PluginArtifactValidator.PLUGIN_API_TOO_NEW_REASON));
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.MICROBOT_HUB, "missing-capabilities-matrix"),
+			false,
+			PluginArtifactSignatureClassification.TRUSTED_MICROBOT,
+			"allow",
+			"trusted_microbot",
+			PluginArtifactVerifier.TRUSTED_MICROBOT_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.MISSING,
+			"block",
+			"capabilities_blocked_for_source",
+			PluginCapabilityPolicy.BLOCKED_FOR_SOURCE_REASON,
+			Collections.emptyList(),
+			Collections.singletonList(PluginCapabilityPolicy.BLOCKED_FOR_SOURCE_REASON));
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.MICROBOT_HUB, "duplicate-matrix"),
+			false,
+			PluginArtifactSignatureClassification.TRUSTED_MICROBOT,
+			"allow",
+			"trusted_microbot",
+			PluginArtifactVerifier.TRUSTED_MICROBOT_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.NORMAL,
+			"allow",
+			"capabilities_ok",
+			PluginCapabilityPolicy.OK_REASON,
+			Collections.emptyList(),
+			Collections.singletonList(PluginRuntime.DUPLICATE_ID_ERROR_PREFIX + "duplicate-matrix"));
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.LOCAL_DIRECTORY, "local-restricted-matrix"),
+			true,
+			PluginArtifactSignatureClassification.TRUSTED_MICROBOT,
+			"allow",
+			"trusted_microbot",
+			PluginArtifactVerifier.TRUSTED_MICROBOT_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.RESTRICTED,
+			"warn",
+			"capabilities_local_warning",
+			PluginCapabilityPolicy.LOCAL_WARNING_REASON,
+			Collections.singletonList(PluginCapabilityPolicy.LOCAL_WARNING_REASON),
+			Collections.emptyList());
+		assertStatus(
+			statusByIdAndSource(result, PluginArtifactSource.RUNELITE_HUB, "duplicate-matrix"),
+			false,
+			PluginArtifactSignatureClassification.TRUSTED_RUNELITE_HUB,
+			"allow",
+			"trusted_runelite_hub",
+			PluginArtifactVerifier.TRUSTED_RUNELITE_HUB_REASON,
+			"allow",
+			PluginArtifactValidator.PLUGIN_API_COMPATIBLE,
+			PluginArtifactValidator.PLUGIN_API_SUPPORTED_REASON,
+			PluginCapabilityState.NORMAL,
+			"allow",
+			"capabilities_ok",
+			PluginCapabilityPolicy.OK_REASON,
+			Collections.emptyList(),
+			Collections.singletonList(PluginRuntime.DUPLICATE_ID_ERROR_PREFIX + "duplicate-matrix"));
+	}
+
+	@Test
 	public void discoveryStatusAllowsLoadableArtifacts() throws Exception
 	{
 		PluginArtifact artifact = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "local")
@@ -608,6 +789,62 @@ public class PluginRuntimeTest
 		return PluginCapabilityManifest.builder(id, id, "1.0.0", source)
 			.capabilities(Collections.singletonList("game_state.read"))
 			.build();
+	}
+
+	private static PluginCapabilityManifest restrictedCapabilities(PluginArtifactSource source, String id)
+	{
+		return PluginCapabilityManifest.builder(id, id, "1.0.0", source)
+			.capabilities(Arrays.asList("game_state.read", "credentials.access"))
+			.build();
+	}
+
+	private static void assertStatus(
+		PluginRuntimeArtifactStatus status,
+		boolean loadable,
+		PluginArtifactSignatureClassification signatureClassification,
+		String signaturePolicyAction,
+		String signatureReasonCode,
+		String signatureReason,
+		String compatibilityPolicyAction,
+		String compatibilityReasonCode,
+		String compatibilityReason,
+		PluginCapabilityState capabilityState,
+		String capabilityPolicyAction,
+		String capabilityReasonCode,
+		String capabilityReason,
+		List<String> warnings,
+		List<String> errors)
+	{
+		assertEquals(loadable, status.isLoadable());
+		assertEquals(signatureClassification, status.getSignatureClassification());
+		assertEquals(signaturePolicyAction, status.getSignaturePolicyAction());
+		assertEquals(signatureReasonCode, status.getSignatureReasonCode());
+		assertEquals(signatureReason, status.getSignatureReason());
+		assertEquals(compatibilityPolicyAction, status.getCompatibilityPolicyAction());
+		assertEquals(compatibilityReasonCode, status.getCompatibilityReasonCode());
+		assertEquals(compatibilityReason, status.getCompatibilityReason());
+		assertEquals(capabilityState, status.getCapabilityState());
+		assertEquals(capabilityPolicyAction, status.getCapabilityPolicyAction());
+		assertEquals(capabilityReasonCode, status.getCapabilityReasonCode());
+		assertEquals(capabilityReason, status.getCapabilityReason());
+		assertEquals(warnings, status.getWarnings());
+		assertEquals(errors, status.getErrors());
+	}
+
+	private static PluginRuntimeArtifactStatus statusByIdAndSource(
+		PluginRuntimeDiscoveryResult result,
+		PluginArtifactSource source,
+		String id)
+	{
+		for (PluginRuntimeArtifactStatus status : result.getArtifacts())
+		{
+			PluginArtifact artifact = status.getArtifact();
+			if (source == artifact.getSource() && id.equals(artifact.getId()))
+			{
+				return status;
+			}
+		}
+		throw new AssertionError("Missing status for " + source + ":" + id);
 	}
 
 	private static PluginRuntimeArtifactStatus statusFor(PluginArtifact artifact, PluginArtifactValidator validator) throws Exception
