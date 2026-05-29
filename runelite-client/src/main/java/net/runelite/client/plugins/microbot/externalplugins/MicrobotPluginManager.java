@@ -49,6 +49,8 @@ import net.runelite.client.events.ExternalPluginsChanged;
 import net.runelite.client.plugins.*;
 import net.runelite.client.plugins.microbot.MicrobotApi;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.externalplugins.lifecycle.MicrobotHubArtifactStore;
+import net.runelite.client.plugins.microbot.externalplugins.lifecycle.MicrobotHubLifecycle;
 import net.runelite.client.plugins.microbot.util.misc.Rs2UiHelper;
 import net.runelite.client.plugins.runtime.PluginArtifact;
 import net.runelite.client.plugins.runtime.PluginArtifactSource;
@@ -106,6 +108,7 @@ public class MicrobotPluginManager {
     private final ConfigManager configManager;
     private final MicrobotApi microbotApi;
     private final PluginArtifactValidator artifactValidator;
+    private final MicrobotHubLifecycle hubLifecycle;
 
     private final Map<String, URLClassLoader> loaders = new ConcurrentHashMap<>();
 
@@ -139,6 +142,20 @@ public class MicrobotPluginManager {
         this.configManager = configManager;
         this.microbotApi = microbotApi;
         this.artifactValidator = new PluginArtifactValidator(Rs2UiHelper::isClientVersionCompatible);
+        this.hubLifecycle = new MicrobotHubLifecycle(manifestMap::get, new MicrobotHubArtifactStore()
+        {
+            @Override
+            public boolean install(MicrobotPluginManifest manifest, @Nullable String versionOverride)
+            {
+                return downloadPlugin(manifest.getInternalName(), versionOverride);
+            }
+
+            @Override
+            public boolean remove(MicrobotPluginManifest manifest)
+            {
+                return removePluginArtifact(manifest.getInternalName());
+            }
+        });
 
         PLUGIN_DIR.mkdirs();
     }
@@ -1055,6 +1072,18 @@ public class MicrobotPluginManager {
         }
     }
 
+    private boolean removePluginArtifact(String internalName) {
+        File jar = getPluginJarFile(internalName);
+        boolean removed = true;
+        if (jar.exists() && !jar.delete()) {
+            log.warn("Failed to delete plugin jar {}", jar.getAbsolutePath());
+            removed = false;
+        }
+
+        clearInstalledPluginVersion(internalName);
+        return removed;
+    }
+
     /**
      * Installs a plugin and triggers UI refresh.
      *
@@ -1094,8 +1123,8 @@ public class MicrobotPluginManager {
             return;
         }
 
-        var result = downloadPlugin(internalName, versionOverride);
-        if (result) {
+        MicrobotHubLifecycle.InstallResult result = hubLifecycle.install(internalName, versionOverride);
+        if (result.isInstalled()) {
             //verifiy hash inside loadSidePlugin doesn't work
             loadSideLoadPlugin(internalName);
             sendPluginInstallTelemetry(manifest, versionOverride);
@@ -1122,7 +1151,6 @@ public class MicrobotPluginManager {
             return;
         }
 
-        File jar = getPluginJarFile(internalName);
         var pluginToRemove = pluginManager.getPlugins().stream().filter(x -> x.getClass().getSimpleName().equalsIgnoreCase(internalName)).findFirst();
         if (pluginToRemove.isPresent()) {
             URLClassLoader cl = loaders.remove(internalName);
@@ -1152,10 +1180,7 @@ public class MicrobotPluginManager {
             log.warn("Plugin to remove not found in plugin manager: {}", internalName);
         }
 
-        if (jar.exists() && !jar.delete()) {
-            log.warn("Failed to delete plugin jar {}", jar.getAbsolutePath());
-        }
-        clearInstalledPluginVersion(internalName);
+        hubLifecycle.remove(internalName);
 
         log.info("Removed plugin {} from installed list", manifest.getDisplayName());
         eventBus.post(new ExternalPluginsChanged());
