@@ -37,7 +37,7 @@ import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
 import net.runelite.client.plugins.microbot.services.BridgeApiService;
 import net.runelite.client.plugins.microbot.services.DefaultBridgeApiService;
-import net.runelite.client.plugins.runtime.PluginArtifact;
+import net.runelite.client.plugins.runtime.PluginArtifactStatusProjection;
 import net.runelite.client.plugins.runtime.PluginCapabilityPolicy;
 import net.runelite.client.plugins.runtime.PluginLifecycleOperation;
 import net.runelite.client.plugins.runtime.PluginRuntimeArtifactStatus;
@@ -572,39 +572,9 @@ public class BridgeV1Handler extends AgentHandler
 		return dto;
 	}
 
-	private static Map<String, Object> toArtifactDto(PluginRuntimeArtifactStatus status)
+	private static Map<String, Object> toArtifactDto(PluginArtifactStatusProjection status)
 	{
-		PluginArtifact artifact = status.getArtifact();
-		Map<String, Object> dto = new LinkedHashMap<>();
-		dto.put("id", artifact.getId());
-		dto.put("displayName", artifact.getDisplayName());
-		dto.put("version", artifact.getVersion());
-		dto.put("source", artifact.getSource().name());
-		dto.put("metadataSource", artifact.getMetadataSource().name());
-		dto.put("entryClasses", artifact.getEntryClasses());
-		dto.put("minClientVersion", artifact.getMinClientVersion());
-		dto.put("checksumSha256", artifact.getChecksumSha256());
-		dto.put("signature", artifact.getSignature());
-		dto.put("installed", artifact.getArtifactFile() != null);
-		dto.put("loadable", status.isLoadable());
-		dto.put("warnings", status.getWarnings());
-		dto.put("pluginApiVersion", status.getPluginApiVersion());
-		dto.put("clientPluginApiVersion", status.getClientPluginApiVersion());
-		dto.put("compatibilityPolicyAction", status.getCompatibilityPolicyAction());
-		dto.put("compatibilityReasonCode", status.getCompatibilityReasonCode());
-		dto.put("compatibilityReason", status.getCompatibilityReason());
-		dto.put("signatureClassification", status.getSignatureClassification() == null ? null : status.getSignatureClassification().name());
-		dto.put("signaturePolicyAction", status.getSignaturePolicyAction());
-		dto.put("signatureReasonCode", status.getSignatureReasonCode());
-		dto.put("signatureReason", status.getSignatureReason());
-		dto.put("capability_state", status.getCapabilityState().name().toLowerCase(java.util.Locale.ROOT));
-		dto.put("capabilities", status.getCapabilities());
-		dto.put("restricted_capabilities", status.getRestrictedCapabilities());
-		dto.put("capability_policy_action", status.getCapabilityPolicyAction());
-		dto.put("capability_reason", status.getCapabilityReasonCode());
-		dto.put("capability_reason_message", status.getCapabilityReason());
-		dto.put("errors", status.getErrors());
-		return dto;
+		return status.toBridgeV1ArtifactDto();
 	}
 
 	private ConfigDescriptor getPluginConfigDescriptor(String id)

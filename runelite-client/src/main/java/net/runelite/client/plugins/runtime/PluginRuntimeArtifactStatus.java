@@ -5,9 +5,12 @@
 package net.runelite.client.plugins.runtime;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
-public final class PluginRuntimeArtifactStatus
+public final class PluginRuntimeArtifactStatus implements PluginArtifactStatusProjection
 {
 	private final PluginArtifact artifact;
 	private final List<String> errors;
@@ -167,5 +170,40 @@ public final class PluginRuntimeArtifactStatus
 	public String getCapabilityReason()
 	{
 		return capabilityReason;
+	}
+
+	@Override
+	public Map<String, Object> toBridgeV1ArtifactDto()
+	{
+		Map<String, Object> dto = new LinkedHashMap<>();
+		dto.put("id", artifact.getId());
+		dto.put("displayName", artifact.getDisplayName());
+		dto.put("version", artifact.getVersion());
+		dto.put("source", artifact.getSource().name());
+		dto.put("metadataSource", artifact.getMetadataSource().name());
+		dto.put("entryClasses", artifact.getEntryClasses());
+		dto.put("minClientVersion", artifact.getMinClientVersion());
+		dto.put("checksumSha256", artifact.getChecksumSha256());
+		dto.put("signature", artifact.getSignature());
+		dto.put("installed", artifact.getArtifactFile() != null);
+		dto.put("loadable", isLoadable());
+		dto.put("warnings", warnings);
+		dto.put("pluginApiVersion", pluginApiVersion);
+		dto.put("clientPluginApiVersion", clientPluginApiVersion);
+		dto.put("compatibilityPolicyAction", compatibilityPolicyAction);
+		dto.put("compatibilityReasonCode", compatibilityReasonCode);
+		dto.put("compatibilityReason", compatibilityReason);
+		dto.put("signatureClassification", signatureClassification == null ? null : signatureClassification.name());
+		dto.put("signaturePolicyAction", signaturePolicyAction);
+		dto.put("signatureReasonCode", signatureReasonCode);
+		dto.put("signatureReason", signatureReason);
+		dto.put("capability_state", capabilityState.name().toLowerCase(Locale.ROOT));
+		dto.put("capabilities", capabilities);
+		dto.put("restricted_capabilities", restrictedCapabilities);
+		dto.put("capability_policy_action", capabilityPolicyAction);
+		dto.put("capability_reason", capabilityReasonCode);
+		dto.put("capability_reason_message", capabilityReason);
+		dto.put("errors", errors);
+		return dto;
 	}
 }

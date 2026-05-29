@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.microbot.services.BridgeApiService;
 import net.runelite.client.plugins.runtime.PluginArtifact;
 import net.runelite.client.plugins.runtime.PluginArtifactSource;
+import net.runelite.client.plugins.runtime.PluginCapabilityManifest;
 import net.runelite.client.plugins.runtime.PluginRepository;
 import net.runelite.client.plugins.runtime.PluginRuntime;
 import net.runelite.client.plugins.runtime.PluginRuntimeDiscoveryResult;
@@ -161,8 +163,9 @@ public class BridgeV1HandlerTest
 	{
 		JsonObject json = requestJson("GET", "/bridge/v1/plugin-artifacts", null);
 		JsonObject dto = json.getAsJsonArray("artifacts").get(0).getAsJsonObject();
+		JsonObject loadable = json.getAsJsonArray("artifacts").get(1).getAsJsonObject();
 
-		assertEquals(1, json.get("count").getAsInt());
+		assertEquals(2, json.get("count").getAsInt());
 		assertTrue(json.get("hasErrors").getAsBoolean());
 		assertEquals("test-artifact", dto.get("id").getAsString());
 		assertEquals("Test Artifact", dto.get("displayName").getAsString());
@@ -190,6 +193,23 @@ public class BridgeV1HandlerTest
 		assertEquals("capabilities_blocked_for_source", dto.get("capability_reason").getAsString());
 		assertEquals("Plugin artifact file is missing", dto.getAsJsonArray("errors").get(0).getAsString());
 		assertEquals("Unsigned plugin is not allowed from this source.", dto.getAsJsonArray("errors").get(1).getAsString());
+
+		assertEquals("loadable-local", loadable.get("id").getAsString());
+		assertEquals("Loadable Local", loadable.get("displayName").getAsString());
+		assertEquals("LOCAL_DIRECTORY", loadable.get("source").getAsString());
+		assertTrue(loadable.get("loadable").getAsBoolean());
+		assertEquals("UNSIGNED_LOCAL", loadable.get("signatureClassification").getAsString());
+		assertEquals("warn", loadable.get("signaturePolicyAction").getAsString());
+		assertEquals("unsigned_local", loadable.get("signatureReasonCode").getAsString());
+		assertEquals("Unsigned local plugin. Allowed for development.", loadable.get("signatureReason").getAsString());
+		assertEquals(
+			"Unsigned local plugin. Allowed for development.",
+			loadable.getAsJsonArray("warnings").get(0).getAsString());
+		assertEquals("normal", loadable.get("capability_state").getAsString());
+		assertEquals("game_state.read", loadable.getAsJsonArray("capabilities").get(0).getAsString());
+		assertEquals("allow", loadable.get("capability_policy_action").getAsString());
+		assertEquals("capabilities_ok", loadable.get("capability_reason").getAsString());
+		assertEquals(0, loadable.getAsJsonArray("errors").size());
 	}
 
 	@Test
@@ -248,7 +268,7 @@ public class BridgeV1HandlerTest
 		assertTrue(health.get("pluginManagerAvailable").getAsBoolean());
 		assertTrue(health.get("configManagerAvailable").getAsBoolean());
 		assertTrue(health.get("artifactStatusAvailable").getAsBoolean());
-		assertEquals(1, health.get("artifactCount").getAsInt());
+		assertEquals(2, health.get("artifactCount").getAsInt());
 		assertEquals(1, health.getAsJsonObject("pluginHealth").get("count").getAsInt());
 		assertEquals(1, health.getAsJsonObject("startupTiming").get("count").getAsInt());
 
@@ -367,6 +387,19 @@ public class BridgeV1HandlerTest
 				.pluginApiVersion(1)
 				.checksumSha256("abc123")
 				.build();
+			PluginArtifact loadable = PluginArtifact.builder(PluginArtifactSource.LOCAL_DIRECTORY, "loadable-local")
+				.displayName("Loadable Local")
+				.version("1.0.0")
+				.entryClasses("example.LocalPlugin")
+				.pluginApiVersion(1)
+				.capabilityManifest(PluginCapabilityManifest.builder(
+					"loadable-local",
+					"Loadable Local",
+					"1.0.0",
+					PluginArtifactSource.LOCAL_DIRECTORY)
+					.capabilities(Collections.singletonList("game_state.read"))
+					.build())
+				.build();
 			PluginRepository repository = new PluginRepository()
 			{
 				@Override
@@ -378,7 +411,7 @@ public class BridgeV1HandlerTest
 				@Override
 				public List<PluginArtifact> discover()
 				{
-					return Collections.singletonList(artifact);
+					return Arrays.asList(artifact, loadable);
 				}
 			};
 			return new PluginRuntime(Collections.singletonList(repository)).discoverStatus();
