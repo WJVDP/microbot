@@ -1,0 +1,176 @@
+{
+  "status": {
+    "bridgeVersion": "1",
+    "serverTime": "2026-05-21T00:00:00Z",
+    "runeliteVersion": "1.10.0",
+    "microbotVersion": "1.10.0",
+    "pluginManagerAvailable": true,
+    "pluginCount": 120
+  },
+  "pluginList": {
+    "count": 1,
+    "plugins": [
+      {
+        "id": "net.runelite.client.plugins.example.ExamplePlugin",
+        "displayName": "Example",
+        "className": "net.runelite.client.plugins.example.ExamplePlugin",
+        "enabled": true,
+        "active": true,
+        "hidden": false,
+        "external": false,
+        "description": "Example plugin"
+      }
+    ]
+  },
+  "pluginCommand": {
+    "id": "net.runelite.client.plugins.example.ExamplePlugin",
+    "displayName": "Example",
+    "className": "net.runelite.client.plugins.example.ExamplePlugin",
+    "enabled": true,
+    "active": true,
+    "hidden": false,
+    "external": false,
+    "description": "Example plugin",
+    "changed": true
+  },
+  "pluginConfigSchema": {
+    "group": "example",
+    "sections": [],
+    "items": [
+      {
+        "key": "enabled",
+        "name": "Enabled",
+        "description": "Enable example setting",
+        "type": "boolean",
+        "position": -1,
+        "hidden": false,
+        "secret": false,
+        "section": "",
+        "warning": ""
+      }
+    ]
+  },
+  "pluginConfigValues": {
+    "group": "example",
+    "values": {
+      "enabled": "true"
+    }
+  },
+  "pluginConfigWrite": {
+    "group": "example",
+    "values": {
+      "enabled": "false"
+    },
+    "success": true,
+    "changed": [
+      "enabled"
+    ]
+  },
+  "pluginArtifacts": {
+    "count": 1,
+    "hasErrors": false,
+    "artifacts": [
+      {
+        "id": "example",
+        "displayName": "Example",
+        "version": "1.0.0",
+        "source": "MICROBOT_HUB",
+        "metadataSource": "HUB_MANIFEST",
+        "entryClasses": [
+          "example.ExamplePlugin"
+        ],
+        "minClientVersion": "1.10.0",
+        "pluginApiVersion": 1,
+        "clientPluginApiVersion": 1,
+        "compatibilityPolicyAction": "allow",
+        "compatibilityReasonCode": "plugin_api_compatible",
+        "compatibilityReason": "Plugin API version is supported.",
+        "checksumSha256": "abc123",
+        "signature": null,
+        "installed": true,
+        "loadable": true,
+        "errors": []
+      }
+    ]
+  },
+  "artifactCommand": {
+    "commandId": "6f3e9f5e-2a53-4db4-87a6-6f2b48c5740f",
+    "action": "install",
+    "targetType": "pluginArtifact",
+    "id": "example",
+    "accepted": true,
+    "status": "queued",
+    "version": "1.0.0"
+  },
+  "events": {
+    "count": 1,
+    "events": [
+      {
+        "id": "f2c7d0f0-f81d-4a31-8fe0-850d3c7b43a0",
+        "time": "2026-05-21T00:00:00Z",
+        "type": "plugin.install",
+        "level": "info",
+        "source": "bridge-v1",
+        "pluginId": "example",
+        "action": "install",
+        "status": "queued",
+        "message": "Plugin artifact install queued"
+      }
+    ]
+  },
+  "runtimeHealth": {
+    "serverTime": "2026-05-21T00:00:00Z",
+    "pluginManagerAvailable": true,
+    "configManagerAvailable": true,
+    "pluginCount": 120,
+    "pluginHealth": {
+      "slowCallThresholdMs": 50,
+      "count": 1,
+      "plugins": [
+        {
+          "pluginId": "net.runelite.client.plugins.example.ExamplePlugin",
+          "exceptionCount": 0,
+          "slowCallCount": 1,
+          "totalCallCount": 42,
+          "totalDurationMs": 125,
+          "maxDurationMs": 53,
+          "lastOperation": "overlay-render",
+          "lastFailure": null,
+          "lastFailureStackTrace": null,
+          "lastFailureTime": null,
+          "disabledOrBlockedReason": null
+        }
+      ]
+    },
+    "startupTiming": {
+      "count": 1,
+      "timings": [
+        {
+          "time": "2026-05-21T00:00:00Z",
+          "stage": "config.load",
+          "detail": "user configuration",
+          "durationMs": 17,
+          "durationNanos": 17000000
+        }
+      ]
+    },
+    "artifactStatusAvailable": true,
+    "artifactCount": 1,
+    "artifactErrors": false
+  },
+  "startupTiming": {
+    "count": 1,
+    "timings": [
+      {
+        "time": "2026-05-21T00:00:00Z",
+        "stage": "config.load",
+        "detail": "user configuration",
+        "durationMs": 17,
+        "durationNanos": 17000000
+      }
+    ]
+  },
+  "error": {
+    "error": "Plugin artifact not found: missing"
+  }
+}

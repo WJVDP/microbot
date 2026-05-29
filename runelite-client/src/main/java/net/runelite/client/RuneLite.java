@@ -81,6 +81,7 @@ import net.runelite.client.discord.DiscordService;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginManager;
 import net.runelite.client.proxy.ProxyChecker;
@@ -484,7 +485,7 @@ public class RuneLite
 		sessionManager.loadSession();
 
 		// Load user configuration
-		configManager.load();
+		StartupTimingRegistry.getDefault().timeUnchecked("config.load", "user configuration", configManager::load);
 
 		// Initialize MicrobotPluginManager after configManager is loaded
 		microbotPluginManager.init();

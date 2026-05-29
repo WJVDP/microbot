@@ -38,5 +38,11 @@ jobs:
         with:
           gradle-version: wrapper
 
+      - name: Validate release signing workflow
+        run: scripts/test-release-signing-validation.sh
+
+      - name: Validate channel release workflows
+        run: scripts/test-channel-release-workflows.sh
+
       - name: Build and Test
         run: ./ci/build.sh

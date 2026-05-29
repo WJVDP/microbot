@@ -66,6 +66,9 @@ import net.runelite.client.events.OverlayMenuClicked;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.input.MouseAdapter;
 import net.runelite.client.input.MouseManager;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.JagexColors;
 import net.runelite.client.util.ColorUtil;
@@ -96,6 +99,8 @@ public class OverlayRenderer extends MouseAdapter
 	private final ClientUI clientUI;
 	private final EventBus eventBus;
 	private final ChatMessageManager chatMessageManager;
+	private final PluginHealthRegistry pluginHealthRegistry;
+	private final StartupTimingRegistry startupTimingRegistry;
 
 	private Font font, tooltipFont, interfaceFont;
 
@@ -124,7 +129,9 @@ public class OverlayRenderer extends MouseAdapter
 		final KeyManager keyManager,
 		final ClientUI clientUI,
 		final EventBus eventBus,
-		final ChatMessageManager chatMessageManager
+		final ChatMessageManager chatMessageManager,
+		final PluginHealthRegistry pluginHealthRegistry,
+		final StartupTimingRegistry startupTimingRegistry
 	)
 	{
 		this.client = client;
@@ -133,6 +140,8 @@ public class OverlayRenderer extends MouseAdapter
 		this.clientUI = clientUI;
 		this.eventBus = eventBus;
 		this.chatMessageManager = chatMessageManager;
+		this.pluginHealthRegistry = pluginHealthRegistry;
+		this.startupTimingRegistry = startupTimingRegistry;
 
 		HotkeyListener hotkeyListener = new HotkeyListener(runeLiteConfig::dragHotkey)
 		{
@@ -714,15 +723,18 @@ public class OverlayRenderer extends MouseAdapter
 		overlay.getBounds().setLocation(point);
 
 		final Dimension overlayDimension;
+		long start = System.nanoTime();
 		try
 		{
 			overlayDimension = overlay.render(graphics);
 		}
 		catch (Exception ex)
 		{
+			recordOverlayRender(overlay, System.nanoTime() - start, ex);
 			log.warn(DEDUPLICATE, "Error during overlay rendering", ex);
 			return;
 		}
+		recordOverlayRender(overlay, System.nanoTime() - start, null);
 
 		if (overlayDimension != null)
 		{
@@ -731,6 +743,17 @@ public class OverlayRenderer extends MouseAdapter
 		else
 		{
 			overlay.getBounds().setSize(0, 0);
+		}
+	}
+
+	private void recordOverlayRender(Overlay overlay, long durationNanos, Exception failure)
+	{
+		String detail = overlay.getClass().getName() + "#render";
+		startupTimingRegistry.record("overlay-render", detail, durationNanos);
+		Plugin plugin = overlay.getPlugin();
+		if (plugin != null)
+		{
+			pluginHealthRegistry.recordCall(plugin.getClass().getName(), detail, durationNanos, failure);
 		}
 	}
 

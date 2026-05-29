@@ -52,8 +52,23 @@ jobs:
       - name: Prepare artifact name
         run: |
           SRC=$(echo runelite-client/build/libs/client-*-shaded.jar)
-          DEST=runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
+          DEST=runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar
           cp "$SRC" "$DEST"
+
+      - name: Generate release metadata
+        run: |
+          scripts/generate-release-metadata.sh \
+            nightly \
+            "${{ steps.version.outputs.version }}" \
+            "runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar" \
+            "https://files.microbot.cloud/releases/microbot/nightly"
+
+      - name: Validate release artifacts
+        run: |
+          scripts/validate-release-artifacts.sh \
+            nightly \
+            "${{ steps.version.outputs.version }}" \
+            "runelite-client/build/libs/microbot-nightly-${{ steps.version.outputs.version }}.jar"
 
       - name: Create Release
         uses: "marvinpinto/action-automatic-releases@latest"
@@ -63,15 +78,16 @@ jobs:
           prerelease: false
           title: "Nightly Build"
           files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
-            
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-nightly-*.jar
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-nightly-*.jar.sha256
+            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/update-nightly.json
 
-      - name: Upload Jar to Hetzner
+      - name: Upload nightly artifacts to Hetzner
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_HOST }}
           username: root
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: runelite-client/build/libs/microbot-*.jar
+          source: runelite-client/build/libs/microbot-nightly-*.jar,runelite-client/build/libs/microbot-nightly-*.jar.sha256,runelite-client/build/libs/update-nightly.json
           target: /var/www/files/releases/microbot/nightly/
-          strip_components: 2
+          strip_components: 3

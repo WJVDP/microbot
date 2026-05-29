@@ -9,10 +9,13 @@ jobs:
     runs-on: ubuntu-latest  # You can choose a different runner if needed
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -45,15 +48,54 @@ jobs:
           DEST=runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar
           cp "$SRC" "$DEST"
 
-      - name: Create Release
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ steps.version.outputs.version }}"
-          prerelease: false
-          title: "Release ${{ steps.version.outputs.version }}"
-          files: |
-            /home/runner/work/Microbot/Microbot/runelite-client/build/libs/microbot-*.jar
+      - name: Generate release metadata
+        run: |
+          scripts/generate-release-metadata.sh \
+            stable \
+            "${{ steps.version.outputs.version }}" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar" \
+            "https://files.microbot.cloud/releases/microbot/stable"
+
+      - name: Generate release notes
+        run: |
+          scripts/generate-release-notes.sh \
+            --version "${{ steps.version.outputs.version }}" \
+            --current "$GITHUB_SHA" \
+            --output "runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md"
+
+      - name: Validate release signing workflow
+        run: scripts/validate-release-signing.sh .github/workflows/release.yml
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign stable release jar
+        run: |
+          JAR="runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar"
+          BUNDLE="runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle"
+          if [ ! -f "$JAR" ]; then
+            echo "Stable release jar not found: $JAR" >&2
+            exit 1
+          fi
+          cosign sign-blob --yes --bundle "$BUNDLE" "$JAR"
+          test -s "$BUNDLE"
+
+      - name: Validate release artifacts
+        run: |
+          scripts/validate-release-artifacts.sh stable "${{ steps.version.outputs.version }}" "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar"
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --draft \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --notes-file "runelite-client/build/libs/release-notes-${{ steps.version.outputs.version }}.md" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.sha256" \
+            "runelite-client/build/libs/microbot-${{ steps.version.outputs.version }}.jar.bundle" \
+            "runelite-client/build/libs/update-stable.json"
 
       - name: Upload Jar to Hetzner
         uses: appleboy/scp-action@v0.1.7
@@ -61,7 +103,17 @@ jobs:
           host: ${{ secrets.PROD_HOST }}
           username: root
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: runelite-client/build/libs/microbot-*.jar
+          source: runelite-client/build/libs/microbot-*.jar,runelite-client/build/libs/microbot-*.jar.bundle
+          target: /var/www/files/releases/microbot/stable/
+          strip_components: 3
+
+      - name: Upload release metadata to Hetzner
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: root
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: runelite-client/build/libs/microbot-*.jar.sha256,runelite-client/build/libs/update-stable.json
           target: /var/www/files/releases/microbot/stable/
           strip_components: 3
 

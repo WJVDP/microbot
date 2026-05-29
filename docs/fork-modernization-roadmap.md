@@ -74,6 +74,16 @@ Status as of 2026-05-19:
 - Created local durable branches for RuneLite integration, Microbot integration, plugin runtime work, and UI shell work.
 - Made CI's Phase 1 checks explicit in `ci/build.sh`.
 - Added `docs/fork-workflow.md` and `docs/release-workflow.md`.
+- Added `docs/runelite-update-playbook.md` and `scripts/update-runelite-report.sh`.
+- Ran the baseline build/test commands with a workspace-local Gradle cache.
+- Began Phase 3 with `docs/plugin-runtime-v2-inventory.md`.
+- Added read-only Plugin Runtime V2 artifact/repository scaffolding under
+  `net.runelite.client.plugins.runtime`, with manifest-backed metadata
+  discovery tests and shared validation scaffolding.
+- Decided that Microbot Hub jars should reuse RuneLite's jar-local
+  `runelite_plugin.json` stub for entry classes. Microbot-specific hub,
+  compatibility, permission, and capability metadata remains in Microbot
+  manifests or a future extension only when RuneLite's stub cannot represent it.
 
 Tasks:
 
@@ -137,6 +147,29 @@ Acceptance criteria:
 
 Purpose: replace fragmented plugin loading with one coherent model.
 
+Status as of 2026-05-26:
+
+- Inventory and manifest-format decision are documented in
+  `docs/plugin-runtime-v2-inventory.md` and
+  `docs/decisions/adr-0005-plugin-jar-entry-manifest.md`.
+- Read-only repository adapters exist for core, RuneLite Hub, Microbot Hub, and
+  local-directory plugin sources.
+- RuneLite Hub, Microbot Hub, and local-directory artifacts read jar-local
+  `runelite_plugin.json` entry classes without loading plugin classes.
+- `PluginRuntime.discoverStatus()` returns structured artifact statuses for
+  compatibility, disabled, duplicate-id, missing-entry-class, checksum,
+  signature, and capability-policy failures.
+- `MicrobotPluginManager` now reuses the shared artifact validator for
+  descriptor and manifest checks, and install is blocked for disabled or
+  incompatible Microbot Hub manifests before download/load.
+- Runtime V2 centralizes checksum verification and signature verification
+  through explicit verifier and policy types.
+- Community plugin signing and staged capability policy are accepted in
+  `docs/decisions/adr-0006-community-plugin-signing-trust-model.md` and
+  `docs/decisions/adr-0007-staged-plugin-capability-permissions.md`.
+- Existing classpath and whole-jar scanning remain only as compatibility paths
+  until manifest-backed coverage is complete for released plugins.
+
 Proposed abstractions:
 
 ```text
@@ -195,6 +228,25 @@ Acceptance criteria:
 
 Purpose: build a cleaner UI without destabilizing the RuneLite game canvas.
 
+Status as of 2026-05-26:
+
+- Added `docs/bridge-api-v1.md` as the first versioned local bridge contract.
+- Reused the existing Agent Server localhost/UDS transport and `X-Agent-Token`
+  guard for the UI-facing bridge.
+- Added `/bridge/v1/status`, `/bridge/v1/plugins`, and
+  `/bridge/v1/plugins/{id}/start|stop` endpoints for runtime status and loaded
+  plugin control.
+- Added `/bridge/v1/plugin-artifacts` backed by Plugin Runtime V2 discovery
+  status for Microbot Hub artifacts.
+- The Agent Server remains an automation surface; Bridge V1 is the narrower
+  dashboard/UI contract.
+- Bridge V1 now also covers plugin artifact install/update/remove, plugin
+  config schema and read/write endpoints, recent events, runtime health,
+  startup timing, generated TypeScript types, and status fields for signature
+  and capability policy.
+- `ui-shell/` contains the first Electron and TypeScript shell scaffold that can
+  consume Bridge V1 status, plugin, artifact, health, and timing surfaces.
+
 Recommended first architecture:
 
 - Keep the OSRS game canvas in the Java client window.
@@ -227,6 +279,15 @@ Acceptance criteria:
 
 Purpose: reduce Java surface area where it is not required by RuneLite.
 
+Status as of 2026-05-26:
+
+- Bridge V1 defines the Java-to-non-Java contract that a TypeScript dashboard
+  consumes.
+- `ui-shell/` is the first migrated non-core subsystem. Java continues to own
+  actual plugin lifecycle and game runtime behavior.
+- Future practical migration targets are launcher/update UX, plugin
+  marketplace/dashboard UI, diagnostics, and release automation.
+
 Good candidates:
 
 - launcher/updater
@@ -255,6 +316,16 @@ Acceptance criteria:
 ## Phase 6: Performance And Observability
 
 Purpose: improve performance based on measurements.
+
+Status as of 2026-05-26:
+
+- Startup and Runtime V2 discovery timing are captured for manifest loading and
+  jar verification.
+- Central event, scheduler, and overlay calls emit per-call timing and health
+  records.
+- Bridge V1 exposes read-only runtime health and startup timing status.
+- No startup optimization has been claimed yet because the automated runs do not
+  exercise a real plugin directory or full GUI startup.
 
 Tasks:
 
@@ -287,6 +358,15 @@ Acceptance criteria:
 
 Purpose: reduce coupling and make future changes easier.
 
+Status as of 2026-05-26:
+
+- Initial service interfaces exist for plugin runtime, bridge API, script
+  lifecycle, game state/cache access, and telemetry/update checks.
+- Compatibility shims preserve existing static `Microbot` callers while new code
+  can depend on injectable services.
+- Focused unit tests cover core service construction without launching the full
+  client.
+
 Tasks:
 
 - Gradually replace static `Microbot` access with injectable services.
@@ -310,6 +390,21 @@ Acceptance criteria:
 
 Purpose: make releases repeatable and understandable for users.
 
+Status as of 2026-05-21:
+
+- Stable release CI now generates and uploads `microbot-<version>.jar.sha256`
+  and `update-stable.json` beside the shaded jar.
+- Added `scripts/generate-release-metadata.sh` for channel metadata generation
+  across `stable`, `beta`, and `nightly`.
+- Documented channel ownership and metadata-forward rollback behavior in
+  `docs/release-workflow.md`.
+
+Remaining gaps:
+
+- Signing is still documented as required but not wired to CI secrets.
+- Beta/nightly workflows still need to publish their channel metadata.
+- Automated release notes are still manual.
+
 Tasks:
 
 - Define release channels:
@@ -332,18 +427,24 @@ Acceptance criteria:
 
 ## Open Questions
 
-- Should the first UI shell be Tauri or Electron?
 - How much of Microbot upstream should remain tracked after the fork diverges?
-- What plugin signing model is acceptable for community plugins?
-- Should plugin permissions/capabilities be enforced initially or only declared?
 - What telemetry should be kept, removed, or made explicitly opt-in?
 - Should the bridge API use JSON schema, protobuf, or another contract format?
 
+Resolved decisions:
+
+- The first UI shell uses Electron; see `docs/remaining-modernization-prd.md`.
+- Community plugin signing uses the source-aware trust model in
+  `docs/decisions/adr-0006-community-plugin-signing-trust-model.md`.
+- Plugin permissions/capabilities use the staged policy in
+  `docs/decisions/adr-0007-staged-plugin-capability-permissions.md`.
+
 ## Immediate Next Actions
 
-1. Import or clone the actual Microbot source into this workspace.
-2. Configure fork and upstream remotes.
-3. Add the RuneLite update playbook.
-4. Add the RuneLite update report script.
-5. Run the baseline build/test commands.
-6. Begin Phase 3 design with a full inventory of current plugin loading code.
+1. Finish and review the current Runtime V2 trust-policy slice for signature
+   classification, capability policy, Bridge V1 status fields, and tests.
+2. Wire release signing into CI using documented secrets/properties.
+3. Publish beta and nightly channel metadata from their workflows.
+4. Generate release notes from commit ranges and upstream merge points.
+5. Validate update metadata and checksum URLs in CI.
+6. Define plugin API compatibility policy per client version.

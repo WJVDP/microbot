@@ -1,0 +1,21 @@
+{
+  "name": "@microbot/ui-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal TypeScript desktop shell for the Microbot Bridge V1 API.",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "electron:dev": "npm run build && electron .",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && tsc -p tsconfig.electron.json && vite build",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "electron": "^30.0.9",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}

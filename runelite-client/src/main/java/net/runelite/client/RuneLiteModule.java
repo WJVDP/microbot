@@ -54,7 +54,17 @@ import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.menus.MenuManager;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.services.BridgeApiService;
+import net.runelite.client.plugins.microbot.services.DefaultBridgeApiService;
+import net.runelite.client.plugins.microbot.services.DefaultGameStateCacheService;
+import net.runelite.client.plugins.microbot.services.DefaultScriptLifecycleService;
+import net.runelite.client.plugins.microbot.services.DefaultTelemetryUpdateService;
+import net.runelite.client.plugins.microbot.services.GameStateCacheService;
+import net.runelite.client.plugins.microbot.services.ScriptLifecycleService;
+import net.runelite.client.plugins.microbot.services.TelemetryUpdateService;
 import net.runelite.client.task.Scheduler;
 import net.runelite.client.util.DeferredEventBus;
 import net.runelite.client.util.ExecutorServiceExceptionLogger;
@@ -133,6 +143,12 @@ public class RuneLiteModule extends AbstractModule
 		bind(MenuManager.class);
 		bind(ChatMessageManager.class);
 		bind(ItemManager.class);
+		bind(PluginHealthRegistry.class).toInstance(PluginHealthRegistry.getDefault());
+		bind(StartupTimingRegistry.class).toInstance(StartupTimingRegistry.getDefault());
+		bind(BridgeApiService.class).to(DefaultBridgeApiService.class);
+		bind(GameStateCacheService.class).to(DefaultGameStateCacheService.class);
+		bind(ScriptLifecycleService.class).to(DefaultScriptLifecycleService.class);
+		bind(TelemetryUpdateService.class).to(DefaultTelemetryUpdateService.class);
 		bind(Scheduler.class);
 		bind(PluginManager.class);
 		bind(SessionManager.class);
@@ -142,7 +158,7 @@ public class RuneLiteModule extends AbstractModule
 		bind(Callbacks.class).to(Hooks.class);
 
 		bind(EventBus.class)
-				.toInstance(new EventBus());
+				.toInstance(new EventBus(PluginHealthRegistry.getDefault(), StartupTimingRegistry.getDefault()));
 
 		bind(EventBus.class)
 				.annotatedWith(Names.named("Deferred EventBus"))

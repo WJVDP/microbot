@@ -26,6 +26,7 @@
 package net.runelite.client.ui;
 
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.plugins.microbot.RandomFactClient;
 import net.runelite.client.ui.laf.RuneLiteLAF;
 import net.runelite.client.util.ImageUtil;
@@ -480,6 +481,7 @@ public class SplashScreen extends JFrame implements ActionListener {
     }
 
     public static void stage(double overallProgress, @Nullable String actionText, String subActionText, @Nullable String progressText) {
+        StartupTimingRegistry.getDefault().recordSplashStage(actionText, subActionText);
         if (INSTANCE != null && !INSTANCE.showingError) {
             INSTANCE.overallProgress = overallProgress;
             if (actionText != null) {

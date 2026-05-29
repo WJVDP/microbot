@@ -40,19 +40,21 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.health.PluginHealthRegistry;
+import net.runelite.client.plugins.health.StartupTimingRegistry;
 import net.runelite.client.util.ReflectUtil;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 @Slf4j
-@RequiredArgsConstructor
 @ThreadSafe
 public class EventBus
 {
 	private static final Marker DEDUPLICATE = MarkerFactory.getMarker("DEDUPLICATE");
+	private static final String EVENT_HANDLER_OPERATION = "event-handler";
 
 	@Value
 	public static class Subscriber
@@ -77,6 +79,8 @@ public class EventBus
 	}
 
 	private final Consumer<Throwable> exceptionHandler;
+	private final PluginHealthRegistry pluginHealthRegistry;
+	private final StartupTimingRegistry startupTimingRegistry;
 
 	@Nonnull
 	private ImmutableMultimap<Class<?>, Subscriber> subscribers = ImmutableMultimap.of();
@@ -87,6 +91,28 @@ public class EventBus
 	public EventBus()
 	{
 		this((e) -> log.warn(DEDUPLICATE, "Uncaught exception in event subscriber", e));
+	}
+
+	public EventBus(PluginHealthRegistry pluginHealthRegistry, StartupTimingRegistry startupTimingRegistry)
+	{
+		this((e) -> log.warn(DEDUPLICATE, "Uncaught exception in event subscriber", e),
+			pluginHealthRegistry,
+			startupTimingRegistry);
+	}
+
+	public EventBus(Consumer<Throwable> exceptionHandler)
+	{
+		this(exceptionHandler, PluginHealthRegistry.getDefault(), StartupTimingRegistry.getDefault());
+	}
+
+	public EventBus(
+		Consumer<Throwable> exceptionHandler,
+		PluginHealthRegistry pluginHealthRegistry,
+		StartupTimingRegistry startupTimingRegistry)
+	{
+		this.exceptionHandler = exceptionHandler;
+		this.pluginHealthRegistry = pluginHealthRegistry;
+		this.startupTimingRegistry = startupTimingRegistry;
 	}
 
 	/**
@@ -218,14 +244,39 @@ public class EventBus
 	{
 		for (final Subscriber subscriber : subscribers.get(event.getClass()))
 		{
+			long start = System.nanoTime();
+			Exception failure = null;
 			try
 			{
 				subscriber.invoke(event);
 			}
 			catch (Exception e)
 			{
+				failure = e;
 				exceptionHandler.accept(e);
 			}
+			finally
+			{
+				long durationNanos = System.nanoTime() - start;
+				String methodName = subscriber.getMethod() == null ? "lambda" : subscriber.getMethod().getName();
+				String detail = subscriber.getObject().getClass().getName() + "#" + methodName
+					+ "(" + event.getClass().getSimpleName() + ")";
+				startupTimingRegistry.record(EVENT_HANDLER_OPERATION, detail, durationNanos);
+				String pluginId = pluginId(subscriber.getObject());
+				if (pluginId != null)
+				{
+					pluginHealthRegistry.recordCall(pluginId, detail, durationNanos, failure);
+				}
+			}
 		}
+	}
+
+	private static String pluginId(Object object)
+	{
+		if (object instanceof Plugin)
+		{
+			return object.getClass().getName();
+		}
+		return null;
 	}
 }

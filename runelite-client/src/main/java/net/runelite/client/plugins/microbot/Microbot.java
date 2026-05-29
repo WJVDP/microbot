@@ -55,6 +55,9 @@ import net.runelite.client.plugins.microbot.api.player.Rs2PlayerCache;
 import net.runelite.client.plugins.microbot.api.playerstate.Rs2PlayerStateCache;
 import net.runelite.client.plugins.microbot.api.tileitem.Rs2TileItemCache;
 import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectCache;
+import net.runelite.client.plugins.microbot.services.GameStateCacheService;
+import net.runelite.client.plugins.microbot.services.ScriptLifecycleService;
+import net.runelite.client.plugins.microbot.services.TelemetryUpdateService;
 import net.runelite.client.plugins.microbot.util.security.LoginManager;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
@@ -163,6 +166,12 @@ public class Microbot {
     private static TooltipManager tooltipManager;
     private static ScheduledFuture<?> xpSchedulorFuture;
     private static net.runelite.api.World quickHopTargetWorld;
+    @Inject
+    private static GameStateCacheService gameStateCacheService;
+    @Inject
+    private static ScriptLifecycleService scriptLifecycleService;
+    @Inject
+    private static TelemetryUpdateService telemetryUpdateService;
     /**
      * PouchScript is injected in the main MicrobotPlugin as it's being used in multiple scripts
      */
@@ -247,6 +256,9 @@ public class Microbot {
     }
 
     public static boolean isTelemetryDisabled() {
+        if (telemetryUpdateService != null) {
+            return telemetryUpdateService.isTelemetryDisabled();
+        }
         if (Boolean.getBoolean("microbot.disableTelemetry")) {
             return true;
         }
@@ -297,10 +309,16 @@ public class Microbot {
     }
 
     public static int getVarbitValue(@Varbit int varbit) {
+        if (gameStateCacheService != null) {
+            return gameStateCacheService.getVarbitValue(varbit);
+        }
         return rs2PlayerStateCache.getVarbitValue(varbit);
     }
 
     public static int getVarbitPlayerValue(@Varp int varpId) {
+        if (gameStateCacheService != null) {
+            return gameStateCacheService.getVarpValue(varpId);
+        }
         return rs2PlayerStateCache.getVarpValue(varpId);
     }
 
@@ -339,6 +357,9 @@ public class Microbot {
     }
 
     public static boolean isLoggedIn() {
+        if (gameStateCacheService != null) {
+            return gameStateCacheService.isLoggedIn();
+        }
         return LoginManager.isLoggedIn();
     }
 
@@ -838,6 +859,9 @@ public class Microbot {
      * @return a list of active plugins belonging to the "microbot" package, excluding the specified plugins.
      */
     public static List<Plugin> getActiveMicrobotPlugins() {
+        if (scriptLifecycleService != null) {
+            return scriptLifecycleService.getActiveMicrobotPlugins();
+        }
         return pluginManager.getActivePlugins().stream()
                 .filter(x -> x.getClass().getPackage().getName().toLowerCase().contains("microbot"))
                 .filter(x -> !x.getClass().getSimpleName().equalsIgnoreCase("QuestHelperPlugin")
@@ -867,6 +891,9 @@ public class Microbot {
      * @return a list of active `Script` instances extracted from the microbot plugins.
      */
     public static List<Script> getActiveScripts() {
+        if (scriptLifecycleService != null) {
+            return scriptLifecycleService.getActiveScripts();
+        }
         return getActiveMicrobotPlugins().stream()
                 .flatMap(x -> {
                     // Get all fields of the class

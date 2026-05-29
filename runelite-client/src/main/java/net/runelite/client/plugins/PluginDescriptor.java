@@ -138,6 +138,11 @@ public @interface PluginDescriptor
 	 * The minimum client version required for this plugin to work.
 	 */
 	String minClientVersion() default "1.0.0";
+
+	/**
+	 * The Microbot Plugin API Compatibility Version targeted by this plugin.
+	 */
+	int pluginApiVersion() default 1;
 	/**
 	 * An optional URL to an icon for the plugin.
 	 * This icon will be displayed in the plugin hub list
