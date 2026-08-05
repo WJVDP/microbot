@@ -36,6 +36,8 @@ public @interface PluginDescriptor
     String Nate = "<html>[<font color=orange>N</font>] ";
     String Mocrosoft = "<html>[<font color=#b8f704M>M</font>] ";
     String Default = "<html>[<font color=green>D</font>] ";
+    /** Display prefix for locally planned automation plugins. */
+    String Plan = "<html>[<font color=green>Plan</font>] ";
     String Bank = "<html>[<font color=#9900ff>B</font>] ";
     String Forn = "<html>[<font color=#AF2B1E>F</font>] ";
     String See1Duck = "<html>[<font color=#ffff1a>\uD83E\uDD86</font>] ";

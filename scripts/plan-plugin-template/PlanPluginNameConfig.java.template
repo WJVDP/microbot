@@ -1,0 +1,20 @@
+package net.runelite.client.plugins.microbot.__PACKAGE_SUFFIX__;
+
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigGroup;
+import net.runelite.client.config.ConfigItem;
+
+@ConfigGroup("__PACKAGE_SUFFIX__")
+public interface Plan__PLUGIN_NAME__Config extends Config
+{
+    @ConfigItem(
+            keyName = "loopDelay",
+            name = "Loop delay (ms)",
+            description = "Delay between automation decisions",
+            position = 0
+    )
+    default int loopDelay()
+    {
+        return 600;
+    }
+}

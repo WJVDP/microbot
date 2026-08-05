@@ -32,6 +32,7 @@ Local setup, build commands, and script authoring entry points.
 
 ## Developing Scripts
 - Place new scripts inside the microbot plugin folder: `runelite-client/src/main/java/net/runelite/client/plugins/microbot`.
+- Scaffold a planned automation plugin with `./scripts/create-plan-plugin Woodcutter`. Generated classes use the `Plan<PluginName>` prefix and the plugin list shows a green `[Plan]` badge. See `scripts/plan-plugin-template/README.md`.
 - Reusable helpers belong in `microbot/util`.
 - Config UI goes in `microbot/ui/MicrobotConfigPanel`.
 - Never instantiate caches or queryables directly. Use `Microbot.getRs2XxxCache().query()` or `.getStream()`.

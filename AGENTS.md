@@ -16,6 +16,12 @@ RuneLite fork with a hidden always-on plugin hosting automation scripts. Composi
 - Respect existing Checkstyle/Lombok patterns; don't weaken security (telemetry tokens, HTTP clients).
 - Minimal logging; no PII or session identifiers.
 
+## Plan plugin convention
+- New automation plugins created for this workspace must use the `Plan<PluginName>` Java prefix, for example `PlanWoodcutterPlugin`, `PlanWoodcutterScript`, and `PlanWoodcutterConfig`.
+- Use `PluginDescriptor.Plan + "PluginName"` so the Microbot plugin list renders a green `[Plan]` badge.
+- Scaffold with `./scripts/create-plan-plugin PluginName`; template and decision-model guidance live in `scripts/plan-plugin-template/README.md`.
+- Prefer `StateMachineScript` for 3+ phases. Order urgent recovery/requirement guards before normal work; guards inspect state, state actions perform interactions.
+
 ## Review priority
 - **P0:** client crashes, client-thread blocking, login/world-hop breakage, cache invariant corruption, credential/token exposure.
 - **P1:** script loop timing, overlay correctness, plugin discovery/config, shaded-jar packaging, build reproducibility.

@@ -1,0 +1,45 @@
+package net.runelite.client.plugins.microbot.__PACKAGE_SUFFIX__;
+
+import com.google.inject.Provides;
+import net.runelite.client.config.ConfigManager;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+
+import javax.inject.Inject;
+
+@PluginDescriptor(
+        name = PluginDescriptor.Plan + "__PLUGIN_NAME__",
+        description = "Planned __PLUGIN_NAME__ automation",
+        tags = {"plan", "microbot", "automation"},
+        enabledByDefault = false
+)
+public class Plan__PLUGIN_NAME__Plugin extends Plugin
+{
+    private final Plan__PLUGIN_NAME__Script script;
+    private final Plan__PLUGIN_NAME__Config config;
+
+    @Inject
+    public Plan__PLUGIN_NAME__Plugin(Plan__PLUGIN_NAME__Script script, Plan__PLUGIN_NAME__Config config)
+    {
+        this.script = script;
+        this.config = config;
+    }
+
+    @Provides
+    Plan__PLUGIN_NAME__Config provideConfig(ConfigManager configManager)
+    {
+        return configManager.getConfig(Plan__PLUGIN_NAME__Config.class);
+    }
+
+    @Override
+    protected void startUp()
+    {
+        script.run(config);
+    }
+
+    @Override
+    protected void shutDown()
+    {
+        script.shutdown();
+    }
+}
