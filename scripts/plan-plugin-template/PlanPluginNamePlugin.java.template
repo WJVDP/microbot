@@ -4,6 +4,7 @@ import com.google.inject.Provides;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.ControlCenterPlugin;
 
 import javax.inject.Inject;
 
@@ -13,6 +14,7 @@ import javax.inject.Inject;
         tags = {"plan", "microbot", "automation"},
         enabledByDefault = false
 )
+@ControlCenterPlugin(id = "__CONTROL_CENTER_ID__")
 public class Plan__PLUGIN_NAME__Plugin extends Plugin
 {
     private final Plan__PLUGIN_NAME__Script script;

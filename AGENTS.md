@@ -48,3 +48,17 @@ Read `docs/entity-guides/README.md`. Add a gotcha there when you fix an entity-a
 - State machines (use for 3+ phase scripts): `.../microbot/statemachine/AGENTS.md`
 - Architecture: `docs/ARCHITECTURE.md`, `docs/decisions/`
 - Setup: `docs/development.md`, `docs/installation.md`
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five canonical triage labels without repository-specific aliases. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository with root domain context and ADRs under `docs/decisions/`. See `docs/agents/domain.md`.

@@ -2,32 +2,29 @@ package net.runelite.client.plugins.microbot.agentserver.handler;
 
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.FrameCaptureService;
 import net.runelite.client.ui.DrawManager;
-import net.runelite.client.util.ImageUtil;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-@Slf4j
 public class ScreenshotHandler extends AgentHandler {
 
-	private final Client client;
-	private final DrawManager drawManager;
+	private final FrameCaptureService frameCaptureService;
 
 	public ScreenshotHandler(Gson gson, Client client, DrawManager drawManager) {
+		this(gson, new FrameCaptureService(drawManager));
+	}
+
+	public ScreenshotHandler(Gson gson, FrameCaptureService frameCaptureService) {
 		super(gson);
-		this.client = client;
-		this.drawManager = drawManager;
+		this.frameCaptureService = frameCaptureService;
 	}
 
 	@Override
@@ -47,9 +44,18 @@ public class ScreenshotHandler extends AgentHandler {
 		Map<String, String> params = parseQuery(exchange.getRequestURI());
 		boolean save = "true".equalsIgnoreCase(params.getOrDefault("save", "false"));
 
-		BufferedImage screenshot = captureFrame();
-		if (screenshot == null) {
+		FrameCaptureService.Capture screenshot;
+		try {
+			screenshot = frameCaptureService.capture();
+		} catch (FrameCaptureService.CaptureBusyException e) {
+			sendJson(exchange, 409, errorResponse(e.getMessage()));
+			return;
+		} catch (TimeoutException e) {
 			sendJson(exchange, 500, errorResponse("Failed to capture screenshot - no frame available"));
+			return;
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			sendJson(exchange, 500, errorResponse("Frame capture interrupted"));
 			return;
 		}
 
@@ -60,7 +66,7 @@ public class ScreenshotHandler extends AgentHandler {
 			outDir.mkdirs();
 			String timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
 			File outFile = new File(outDir, label + "-" + timestamp + ".png");
-			ImageIO.write(screenshot, "PNG", outFile);
+			Files.write(outFile.toPath(), screenshot.getPng());
 
 			Map<String, Object> result = new LinkedHashMap<>();
 			result.put("success", true);
@@ -71,9 +77,7 @@ public class ScreenshotHandler extends AgentHandler {
 			return;
 		}
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ImageIO.write(screenshot, "PNG", baos);
-		byte[] bytes = baos.toByteArray();
+		byte[] bytes = screenshot.getPng();
 		exchange.getResponseHeaders().set("Content-Type", "image/png");
 		exchange.sendResponseHeaders(200, bytes.length);
 		try (OutputStream os = exchange.getResponseBody()) {
@@ -81,31 +85,4 @@ public class ScreenshotHandler extends AgentHandler {
 		}
 	}
 
-	private BufferedImage captureFrame() {
-		final BufferedImage[] result = new BufferedImage[1];
-		CountDownLatch latch = new CountDownLatch(1);
-
-		drawManager.requestNextFrameListener(img -> {
-			try {
-				result[0] = ImageUtil.bufferedImageFromImage(img);
-			} catch (Exception e) {
-				log.error("Error converting frame image", e);
-			} finally {
-				latch.countDown();
-			}
-		});
-
-		try {
-			if (!latch.await(5, TimeUnit.SECONDS)) {
-				log.error("Timed out waiting for frame capture");
-				return null;
-			}
-		} catch (InterruptedException e) {
-			log.error("Frame capture interrupted", e);
-			Thread.currentThread().interrupt();
-			return null;
-		}
-
-		return result[0];
-	}
 }

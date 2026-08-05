@@ -59,9 +59,11 @@ TCP mode binds to `127.0.0.1` only. UDS mode binds to `~/.runelite/.agent.sock` 
 |---------|---------|-------------|
 | Port | `8081` | HTTP server port |
 | Max Results | `200` | Default limit for list/query endpoints |
+| Heartbeat stall threshold | `10s` | Age at which an active eligible plugin with a script heartbeat becomes `STALLED` |
 | Auth token | generated | Required in `X-Agent-Token`; stored in `~/.runelite/.agent-token` for CLI use |
 | Stealth bind | `false` | Open the socket only while scripts are active |
 | Bind mode | `TCP` | `TCP` on localhost or `UDS` at `~/.runelite/.agent.sock` |
+| Open dashboard | action | Creates a one-time browser bootstrap and opens the local control center |
 
 CLI environment variables:
 
@@ -72,6 +74,55 @@ CLI environment variables:
 | `MICROBOT_TIMEOUT` | `30` | Request timeout in seconds |
 | `MICROBOT_TOKEN` | unset | Override the `X-Agent-Token` value |
 | `MICROBOT_TOKEN_FILE` | `~/.runelite/.agent-token` | Token file path |
+
+## Local plugin control center
+
+The control center is a bundled, offline dashboard for one running client. In Agent Server settings, press **Open dashboard** to open `http://127.0.0.1:<port>/dashboard/`. The browser dashboard is available in TCP mode; it is not exposed over the Unix-domain-socket transport. An explicit dashboard open keeps stealth-bind mode available for the lifetime of the short browser session.
+
+The dashboard shows a plugin rail, focused lifecycle/health/state/log detail, and a manual client-frame panel. Status polls every 1.5 seconds. A frame is captured only after **Capture** or **Refresh** is pressed and is returned directly from memory without a disk write or server-side retention.
+
+### Plugin eligibility and optional status
+
+Only plugin classes with the explicit marker are discoverable, including while stopped:
+
+```java
+@ControlCenterPlugin(id = "plan-woodcutter")
+public class PlanWoodcutterPlugin extends Plugin
+{
+}
+```
+
+Ids must be unique, stable, lowercase kebab-case values. The dashboard derives ordinary lifecycle state from `PluginManager`, heartbeat health from `ScriptHeartbeatRegistry`, and state/transition data from a matching `StateMachineScript` in the plugin package. Plugin-manager enabled/active state is never treated as heartbeat health.
+
+New Plan plugins created with `./scripts/create-plan-plugin PluginName` receive the marker and a derived `plan-plugin-name` id automatically. For an existing plugin, add the marker directly to its `Plugin` class. If its script extends `StateMachineScript` and remains in the same package, heartbeat and transition reporting require no additional registration. See the [Plan plugin template guide](../scripts/plan-plugin-template/README.md#control-center-hook) for a complete hookup example.
+
+A plugin may publish an already-safe extension with `ControlCenterStatusRegistry.register(id, provider)` during startup. Providers return an immutable, bounded `ControlCenterStatusSnapshot` containing a current action and up to 20 string details. The provider executes on an Agent Server worker and must only read thread-safe cached/scalar values; it must not traverse live RuneLite entities or perform game interactions. Call `ControlCenterStatusRegistry.unregister(id)` during plugin shutdown; the service also drops a provider when it observes the plugin stopped.
+
+### Browser routes
+
+These routes are separate from the machine-token API:
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/dashboard/` | Bundled dashboard shell |
+| `POST` | `/dashboard/api/session/bootstrap` | Exchange a one-time `HttpOnly` bootstrap cookie for a browser session |
+| `GET` | `/dashboard/api/plugins` | Eligible plugin status list |
+| `GET` | `/dashboard/api/plugins/{id}` | Selected plugin status |
+| `POST` | `/dashboard/api/plugins/{id}/start` | Idempotently start an eligible plugin |
+| `POST` | `/dashboard/api/plugins/{id}/stop` | Idempotently stop an eligible plugin |
+| `GET` | `/dashboard/api/plugins/{id}/logs?after=<sequence>` | Read newer events from the plugin's 500-entry ring buffer |
+| `GET` | `/dashboard/api/screenshot` | Capture and return one in-memory PNG |
+
+Lifecycle actions are serialized per plugin and executed on Swing's event-dispatch thread. The Agent Server worker waits with a 10-second bound; it never blocks or sleeps on RuneLite's client thread. Lifecycle and heartbeat health remain separate (`STOPPED`/`STARTING`/`RUNNING`/`STOPPING`/`FAILED` versus `UNKNOWN`/`HEALTHY`/`STALLED`/`FAILED`).
+
+### Browser security boundary
+
+- The config action arms a random nonce for 30 seconds. The first loopback dashboard navigation receives it only in a path-limited, `HttpOnly`, `SameSite=Strict` cookie. It is consumed once by the bootstrap POST.
+- The resulting browser session is held only in memory for 15 minutes. Its id remains in an `HttpOnly`, `SameSite=Strict` cookie; JavaScript receives only a CSRF token kept in page memory.
+- Dashboard handlers require the exact `127.0.0.1:<configured-port>` Host, loopback peer, and exact same-origin value when an Origin is present. Bootstrap and lifecycle POSTs additionally require exact Origin; lifecycle POSTs require CSRF.
+- Responses use `Cache-Control: no-store`, a self-only Content Security Policy, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, and no third-party resources.
+- The machine token is not copied into HTML, JavaScript, URLs, cookies, browser storage, or dashboard logs. Generic `AgentHandler` token authentication and opaque browser-Origin rejection are unchanged.
+- The dedicated Logback appender accepts only eligible plugin logger namespaces. Per-plugin buffers evict the oldest event after 500 entries and redact credential-like values, tokens, cookies, sessions, profile/account identifiers, email addresses, and bounded exception summaries.
 
 ## API Reference
 

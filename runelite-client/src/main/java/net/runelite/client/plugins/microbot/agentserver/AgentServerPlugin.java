@@ -11,8 +11,15 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.ControlCenterService;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.DashboardHandler;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.DashboardLogBuffer;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.DashboardSessionManager;
+import net.runelite.client.plugins.microbot.agentserver.controlcenter.FrameCaptureService;
 import net.runelite.client.plugins.microbot.agentserver.handler.*;
 import net.runelite.client.ui.DrawManager;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -52,14 +59,21 @@ public class AgentServerPlugin extends Plugin {
 	@Inject
 	private DrawManager drawManager;
 
+	@Inject
+	private PluginManager pluginManager;
+
 	private HttpServer server;
 	private net.runelite.client.plugins.microbot.agentserver.uds.UdsHttpServer udsServer;
 	private ExecutorService executor;
 	private Thread shutdownHook;
+	private ControlCenterService controlCenterService;
+	private DashboardSessionManager dashboardSessions;
+	private FrameCaptureService frameCaptureService;
 	private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	private java.util.concurrent.ScheduledExecutorService stealthScheduler;
 	private volatile boolean stealthActive = false;
+	private volatile long dashboardHoldUntilMs;
 	private static final long STEALTH_IDLE_GRACE_MS = 20_000;
 
 	private static Path defaultUdsSocketPath() {
@@ -100,7 +114,8 @@ public class AgentServerPlugin extends Plugin {
 			}
 		});
 
-		List<AgentHandler> handlers = buildHandlers(maxResults);
+		frameCaptureService = new FrameCaptureService(drawManager);
+		List<AgentHandler> handlers = buildHandlers(maxResults, frameCaptureService);
 
 		AgentServerConfig.BindMode mode = config.bindMode();
 		boolean started;
@@ -125,7 +140,7 @@ public class AgentServerPlugin extends Plugin {
 				handlers.size(), tokenFile != null ? "at " + tokenFile : "file unavailable");
 	}
 
-	private List<AgentHandler> buildHandlers(int maxResults) {
+	private List<AgentHandler> buildHandlers(int maxResults, FrameCaptureService captureService) {
 		return Arrays.asList(
 				new WidgetListHandler(gson, maxResults),
 				new WidgetSearchHandler(gson, maxResults),
@@ -143,7 +158,7 @@ public class AgentServerPlugin extends Plugin {
 				new ScriptHandler(gson),
 				new LoginHandler(gson, client),
 				new LogoutHandler(gson, client),
-				new ScreenshotHandler(gson, client, drawManager),
+				new ScreenshotHandler(gson, captureService),
 				new VarbitHandler(gson),
 				new VarpHandler(gson),
 				new WidgetInvokeHandler(gson),
@@ -174,6 +189,12 @@ public class AgentServerPlugin extends Plugin {
 		for (AgentHandler handler : handlers) {
 			server.createContext(handler.getPath(), handler);
 		}
+		DashboardLogBuffer logBuffer = new DashboardLogBuffer();
+		controlCenterService = new ControlCenterService(pluginManager,
+			TimeUnit.SECONDS.toMillis(config.heartbeatStallSeconds()), logBuffer);
+		dashboardSessions = new DashboardSessionManager();
+		server.createContext(DashboardHandler.PATH, new DashboardHandler(
+			gson, port, dashboardSessions, controlCenterService, frameCaptureService));
 		server.start();
 		log.info("Agent server bound to 127.0.0.1:{}", port);
 		return true;
@@ -204,7 +225,14 @@ public class AgentServerPlugin extends Plugin {
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
-		if (!AgentServerConfig.GROUP.equals(event.getGroup()) || !AgentServerConfig.KEY_TOKEN.equals(event.getKey())) {
+		if (!AgentServerConfig.GROUP.equals(event.getGroup())) {
+			return;
+		}
+		if (AgentServerConfig.KEY_OPEN_DASHBOARD.equals(event.getKey())) {
+			openDashboard();
+			return;
+		}
+		if (!AgentServerConfig.KEY_TOKEN.equals(event.getKey())) {
 			return;
 		}
 		String value = event.getNewValue();
@@ -214,6 +242,30 @@ public class AgentServerPlugin extends Plugin {
 			return;
 		}
 		writeTokenFile(value);
+	}
+
+	private synchronized void openDashboard() {
+		if (config.bindMode() == AgentServerConfig.BindMode.UDS && server == null) {
+			log.warn("The dashboard requires Agent Server TCP mode");
+			return;
+		}
+		try {
+			if (server == null && config.bindOnlyWhileScriptsActive()) {
+				dashboardHoldUntilMs = System.currentTimeMillis() + DashboardSessionManager.SESSION_TTL_MS;
+				actuallyStart();
+				stealthActive = server != null;
+			}
+		} catch (Exception e) {
+			log.warn("Could not start Agent Server for the dashboard: {}", e.getMessage());
+			return;
+		}
+		if (server == null || dashboardSessions == null) {
+			log.warn("Dashboard is unavailable because Agent Server is not listening on TCP");
+			return;
+		}
+		dashboardHoldUntilMs = System.currentTimeMillis() + DashboardSessionManager.SESSION_TTL_MS;
+		dashboardSessions.issueBootstrap();
+		LinkBrowser.browse("http://127.0.0.1:" + server.getAddress().getPort() + "/dashboard/");
 	}
 
 	private int ensurePort() {
@@ -315,13 +367,14 @@ public class AgentServerPlugin extends Plugin {
 
 	private synchronized void evaluateStealthState() {
 		try {
-			boolean anyScriptAlive = hasActiveScript();
-			if (anyScriptAlive && !stealthActive) {
-				log.info("Stealth bind: activating agent server (script detected)");
+			boolean shouldListen = hasActiveScript() || System.currentTimeMillis() < dashboardHoldUntilMs
+					|| (dashboardSessions != null && dashboardSessions.hasLiveSession());
+			if (shouldListen && !stealthActive) {
+				log.info("Stealth bind: activating agent server (script or dashboard activity detected)");
 				actuallyStart();
 				stealthActive = true;
-			} else if (!anyScriptAlive && stealthActive) {
-				log.info("Stealth bind: tearing down agent server (no active scripts for {}ms)", STEALTH_IDLE_GRACE_MS);
+			} else if (!shouldListen && stealthActive) {
+				log.info("Stealth bind: tearing down agent server (no active scripts or dashboard sessions)");
 				stopServer();
 				deleteTokenFile();
 				stealthActive = false;
@@ -385,6 +438,15 @@ public class AgentServerPlugin extends Plugin {
 
 	private synchronized void stopServer() {
 		AgentHandler.setTokenSupplier(null);
+		if (dashboardSessions != null) {
+			dashboardSessions.clear();
+			dashboardSessions = null;
+		}
+		if (controlCenterService != null) {
+			controlCenterService.close();
+			controlCenterService = null;
+		}
+		frameCaptureService = null;
 		if (server != null) {
 			server.stop(0);
 			server = null;

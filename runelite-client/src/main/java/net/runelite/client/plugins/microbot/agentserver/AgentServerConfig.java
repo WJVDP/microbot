@@ -1,6 +1,7 @@
 package net.runelite.client.plugins.microbot.agentserver;
 
 import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigButton;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.Range;
@@ -11,6 +12,7 @@ public interface AgentServerConfig extends Config {
 	String GROUP = "agentServer";
 	String KEY_TOKEN = "authToken";
 	String KEY_PORT = "port";
+	String KEY_OPEN_DASHBOARD = "openDashboard";
 
 	@ConfigItem(
 			keyName = "port",
@@ -35,11 +37,22 @@ public interface AgentServerConfig extends Config {
 	}
 
 	@ConfigItem(
+			keyName = "heartbeatStallSeconds",
+			name = "Heartbeat stall threshold",
+			description = "Seconds without a script heartbeat before dashboard health becomes STALLED",
+			position = 2
+	)
+	@Range(min = 2, max = 300)
+	default int heartbeatStallSeconds() {
+		return 10;
+	}
+
+	@ConfigItem(
 			keyName = KEY_TOKEN,
 			name = "Auth token",
 			description = "Shared secret required in the X-Agent-Token header. Auto-generated on first start. Use 'Regenerate token' to rotate.",
 			secret = true,
-			position = 2
+			position = 3
 	)
 	default String authToken() {
 		return "";
@@ -56,7 +69,7 @@ public interface AgentServerConfig extends Config {
 			keyName = "bindOnlyWhileScriptsActive",
 			name = "Stealth bind",
 			description = "Only open the listening socket while a Microbot script is actively running. Eliminates the localhost port fingerprint during manual play.",
-			position = 3
+			position = 4
 	)
 	default boolean bindOnlyWhileScriptsActive() {
 		return false;
@@ -68,9 +81,19 @@ public interface AgentServerConfig extends Config {
 			keyName = "bindMode",
 			name = "Bind mode",
 			description = "TCP: classic 127.0.0.1:<port>. UDS: Unix domain socket at ~/.runelite/.agent.sock — invisible to port scanners but clients must speak UDS.",
-			position = 4
+			position = 5
 	)
 	default BindMode bindMode() {
 		return BindMode.TCP;
+	}
+
+	@ConfigItem(
+			keyName = KEY_OPEN_DASHBOARD,
+			name = "Open dashboard",
+			description = "Open the local plugin control center in your browser (TCP mode only)",
+			position = 6
+	)
+	default ConfigButton openDashboard() {
+		return new ConfigButton();
 	}
 }

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Microbot Control Center</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">MB</span>
+      <div><h1>Microbot Control Center</h1><p>Local automation overview</p></div>
+    </div>
+    <div class="session"><span class="dot healthy"></span><span><strong>127.0.0.1</strong><small id="session-time">Establishing browser session…</small></span><span class="lock" aria-hidden="true">▣</span></div>
+  </header>
+
+  <main class="workspace">
+    <aside class="plugin-rail" aria-label="Eligible plugins">
+      <div class="rail-title"><h2>Plugins</h2><span id="plugin-count">0 eligible</span></div>
+      <div id="plugin-list" class="plugin-list"></div>
+      <p class="eligibility-note">Only plugins with an explicit control-center marker appear. Infrastructure, login helpers, and test harnesses stay hidden.</p>
+    </aside>
+
+    <section class="detail" aria-live="polite">
+      <div id="empty-state" class="empty-state">
+        <span class="empty-mark">MB</span>
+        <h2>No eligible plugin selected</h2>
+        <p>Install or load an automation plugin that opts in with a stable control-center id.</p>
+      </div>
+
+      <div id="plugin-detail" hidden>
+        <div class="detail-head">
+          <div>
+            <p class="eyebrow">Selected automation</p>
+            <h2 id="plugin-name"></h2>
+            <p id="plugin-id" class="mono muted"></p>
+            <div class="status-line"><span id="lifecycle-pill" class="pill"></span><span id="health-pill" class="pill"></span></div>
+          </div>
+          <button id="lifecycle-button" class="button primary" type="button">Start plugin</button>
+        </div>
+
+        <div id="feedback" class="feedback" role="status" hidden><span class="dot"></span><div><strong id="feedback-title"></strong><p id="feedback-message"></p></div></div>
+
+        <div class="stats">
+          <div><span>Runtime</span><strong id="runtime">—</strong></div>
+          <div><span>Heartbeat age</span><strong id="heartbeat">—</strong></div>
+          <div><span>Loops</span><strong id="loops">0</strong></div>
+          <div><span>Transitions</span><strong id="transitions">0</strong></div>
+        </div>
+
+        <section class="state-panel">
+          <div class="section-title"><h3>State machine</h3><span id="state-time">Not active</span></div>
+          <div class="action-callout"><span class="bolt" aria-hidden="true">↯</span><div><span>Current action</span><strong id="current-action">Waiting for status</strong></div></div>
+          <div id="phase-list" class="phase-list"></div>
+          <dl id="extension-details" class="extension-details"></dl>
+        </section>
+
+        <section class="logs-panel">
+          <div class="log-toolbar">
+            <h3>Recent logs <span id="log-count" class="muted">0 / 500</span></h3>
+            <label><span class="sr-only">Filter logs by level</span><select id="log-level"><option>ALL</option><option>INFO</option><option>WARN</option><option>ERROR</option><option>DEBUG</option><option>TRACE</option></select></label>
+          </div>
+          <div id="log-list" class="log-list"><p class="log-empty">No dashboard log events yet.</p></div>
+        </section>
+      </div>
+    </section>
+
+    <aside class="capture-panel">
+      <div class="section-title capture-title"><div><p class="eyebrow">Visual check</p><h2>Client frame</h2></div><div class="capture-actions"><button id="refresh-capture" class="button square" type="button" title="Refresh frame" aria-label="Refresh frame">↻</button><button id="capture" class="button primary" type="button">Capture</button></div></div>
+      <div id="frame-placeholder" class="frame-placeholder"><span>Manual capture</span><strong>No client frame retained</strong><p>A current frame is requested only when you press Capture or Refresh.</p></div>
+      <img id="client-frame" alt="Current RuneLite client frame" hidden>
+      <div class="capture-meta"><span id="capture-size">PNG · in memory</span><span id="capture-time">Not captured</span></div>
+      <p class="capture-note">Manual capture only. Frames are returned from memory, are never written to disk, and are discarded after the response.</p>
+      <div class="boundary-card">
+        <p class="eyebrow">Session boundary</p>
+        <div><span>Transport</span><strong>Loopback only</strong></div>
+        <div><span>Origin</span><strong>Same-origin</strong></div>
+        <div><span>Storage</span><strong>In memory</strong></div>
+        <div><span>Last poll</span><strong id="last-poll">Waiting</strong></div>
+      </div>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
