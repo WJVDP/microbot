@@ -51,6 +51,9 @@ Game State:
   varbit <id>                            Read a varbit value
   varp <id>                              Read a varp (player variable) value
 
+OSRS Wiki:
+  wiki <query> [--limit N]               Search item, NPC, object, and game info
+
 Inventory:
   inventory                              List inventory items
   inventory interact <name> <action>     Use/eat/equip an item
@@ -290,6 +293,21 @@ case "$1" in
         done
         q=$(build_query "name" "${name:-}")
         do_get "${BASE}/skills${q}"
+        ;;
+
+    wiki)
+        [[ $# -lt 2 ]] && { echo '{"error":"Usage: microbot-cli wiki <query> [--limit N]"}'; exit 1; }
+        wiki_query="$2"
+        wiki_limit=""
+        shift 2
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --limit) wiki_limit="$2"; shift 2 ;;
+                *) echo "{\"error\":\"Unknown flag: $1\"}"; exit 1 ;;
+            esac
+        done
+        q=$(build_query "q" "$wiki_query" "limit" "$wiki_limit")
+        do_get "${BASE}/wiki${q}"
         ;;
 
     inventory)

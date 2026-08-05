@@ -24,6 +24,9 @@ The CLI is located at the repository root: `./microbot-cli`
 # Find nearby NPCs
 ./microbot-cli npcs --name Guard --distance 15
 
+# Identify an item, NPC, object, or game mechanic on the OSRS Wiki
+./microbot-cli wiki "abyssal whip"
+
 # Attack the nearest guard
 ./microbot-cli npcs interact "Guard" "Attack"
 
@@ -53,6 +56,17 @@ MICROBOT_PORT=9090 ./microbot-cli state
 ```
 
 ## Command Reference
+
+### OSRS Wiki
+
+Searches OSRS Wiki article introductions and returns structured JSON with the title, page ID, URL, and a short summary. Use this to identify unfamiliar items, NPCs, objects, locations, or mechanics. The client and Agent Server must be running, but the command does not require a logged-in game session.
+
+```bash
+./microbot-cli wiki "mysterious stranger"
+./microbot-cli wiki "dragon defender" --limit 3
+```
+
+The result limit defaults to 5 and is capped at 10.
 
 ### Game State
 

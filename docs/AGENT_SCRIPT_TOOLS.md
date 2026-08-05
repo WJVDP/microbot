@@ -54,6 +54,7 @@ The **Agent Server** plugin (port 8081, localhost) must be enabled for any CLI/H
 | CLI Command | Purpose |
 |-------------|---------|
 | `state` | Game state, player position, health, animation, combat level |
+| `wiki <query> [--limit N]` | Search OSRS Wiki and return ranked article summaries |
 | `skills [--name X]` | All skill levels, boosted levels, XP |
 | `varbit <id>` | Read a varbit value (critical for verifying settings) |
 | `inventory` | Inventory items with id, name, quantity, slot, actions |

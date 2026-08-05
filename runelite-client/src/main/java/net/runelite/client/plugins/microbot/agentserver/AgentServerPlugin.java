@@ -20,6 +20,7 @@ import net.runelite.client.plugins.microbot.agentserver.controlcenter.FrameCaptu
 import net.runelite.client.plugins.microbot.agentserver.handler.*;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.util.LinkBrowser;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -61,6 +62,9 @@ public class AgentServerPlugin extends Plugin {
 
 	@Inject
 	private PluginManager pluginManager;
+
+	@Inject
+	private OkHttpClient okHttpClient;
 
 	private HttpServer server;
 	private net.runelite.client.plugins.microbot.agentserver.uds.UdsHttpServer udsServer;
@@ -155,6 +159,7 @@ public class AgentServerPlugin extends Plugin {
 				new DialogueHandler(gson),
 				new GroundItemHandler(gson, maxResults),
 				new SkillsHandler(gson, client),
+				new WikiHandler(gson, okHttpClient),
 				new ScriptHandler(gson),
 				new LoginHandler(gson, client),
 				new LogoutHandler(gson, client),
