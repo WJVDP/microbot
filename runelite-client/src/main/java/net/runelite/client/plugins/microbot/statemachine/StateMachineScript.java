@@ -73,7 +73,7 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
     private long loopCount;
     private long transitionCount;
     private List<Transition<S>> transitions;
-    private boolean initialized;
+    private volatile boolean initialized;
 
     /** Bounded ring buffer of recent transitions for the trace log. */
     private static final int MAX_TRACE_SIZE = 50;
@@ -215,7 +215,13 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
 
     private void initialize() {
         currentState = initialState();
+        previousState = null;
+        lastTransitionReason = null;
+        lastTransitionAt = null;
         stateEnteredAt = Instant.now();
+        loopCount = 0;
+        transitionCount = 0;
+        traceBuffer.clear();
         transitions = Collections.unmodifiableList(defineTransitions());
         initialized = true;
         REGISTRY.put(getScriptName(), this);
@@ -289,6 +295,7 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
     public void shutdown() {
         REGISTRY.remove(getScriptName());
         super.shutdown();
+        initialized = false;
     }
 
     private String getScriptName() {

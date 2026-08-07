@@ -33,7 +33,9 @@ Check `docs/entity-guides/README.md` before modifying anything under `util/` —
 
 ## Plugins
 - `@PluginDescriptor(name, description, tags, enabledByDefault = false, ...)`.
-- Inject dependencies via Guice constructor injection.
+- Keep a zero-argument constructor and inject dependencies through `@Inject`
+  fields. `PluginManager` constructs plugin instances reflectively before Guice
+  performs member injection.
 - `startUp()` / `shutDown()` must be idempotent and fast — do not launch scripts synchronously there.
 - Communicate between plugins via the event bus, not static state.
 

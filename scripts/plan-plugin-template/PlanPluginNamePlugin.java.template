@@ -17,15 +17,11 @@ import javax.inject.Inject;
 @ControlCenterPlugin(id = "__CONTROL_CENTER_ID__")
 public class Plan__PLUGIN_NAME__Plugin extends Plugin
 {
-    private final Plan__PLUGIN_NAME__Script script;
-    private final Plan__PLUGIN_NAME__Config config;
+    @Inject
+    private Plan__PLUGIN_NAME__Script script;
 
     @Inject
-    public Plan__PLUGIN_NAME__Plugin(Plan__PLUGIN_NAME__Script script, Plan__PLUGIN_NAME__Config config)
-    {
-        this.script = script;
-        this.config = config;
-    }
+    private Plan__PLUGIN_NAME__Config config;
 
     @Provides
     Plan__PLUGIN_NAME__Config provideConfig(ConfigManager configManager)

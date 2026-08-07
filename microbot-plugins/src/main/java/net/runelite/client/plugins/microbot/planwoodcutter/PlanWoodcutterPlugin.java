@@ -17,15 +17,11 @@ import javax.inject.Inject;
 @ControlCenterPlugin(id = "plan-woodcutter")
 public class PlanWoodcutterPlugin extends Plugin
 {
-    private final PlanWoodcutterScript script;
-    private final PlanWoodcutterConfig config;
+    @Inject
+    private PlanWoodcutterScript script;
 
     @Inject
-    public PlanWoodcutterPlugin(PlanWoodcutterScript script, PlanWoodcutterConfig config)
-    {
-        this.script = script;
-        this.config = config;
-    }
+    private PlanWoodcutterConfig config;
 
     @Provides
     PlanWoodcutterConfig provideConfig(ConfigManager configManager)
