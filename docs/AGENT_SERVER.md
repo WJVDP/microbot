@@ -126,23 +126,6 @@ Lifecycle actions are serialized per plugin and executed on Swing's event-dispat
 
 ## API Reference
 
-### OSRS Wiki
-
-#### GET /wiki
-
-Searches main-namespace OSRS Wiki pages and returns ranked article introductions. This endpoint performs only outbound HTTP work on an Agent Server worker; it does not access or block the client thread.
-
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `q` | Yes | - | Item, NPC, object, location, or other search text (max 200 characters) |
-| `limit` | No | `5` | Number of results, capped at 10 |
-
-```bash
-./microbot-cli wiki "abyssal whip" --limit 3
-```
-
-Each result contains `title`, `pageId`, `url`, and `summary`. If the Wiki cannot be reached, the endpoint returns HTTP 502.
-
 ### Widget Endpoints
 
 #### GET /widgets/list

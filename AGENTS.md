@@ -28,6 +28,7 @@ RuneLite fork with a hidden always-on plugin hosting automation scripts. Composi
 
 ## Runtime tooling
 - `./microbot-cli` (JSON output) — see `docs/MICROBOT_CLI.md`, HTTP API `docs/AGENT_SERVER.md`, full tool list `docs/AGENT_SCRIPT_TOOLS.md`.
+- Offline OSRS Wiki lookup for development context: `./microbot-cli wiki "<item, NPC, object, or mechanic>" [--limit N]`.
 - Agent Server plugin runs on port 8081 by default.
 - Offline client-thread lookup: `./microbot-cli ct <method>`.
 - Test mode: `-Dmicrobot.test.mode=true -Dmicrobot.test.script=<PluginName>` → results in `~/.runelite/test-results/`. Protocol: `docs/AGENTIC_TESTING_LOOP.md`.

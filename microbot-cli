@@ -5,6 +5,7 @@ HOST="${MICROBOT_HOST:-127.0.0.1}"
 PORT="${MICROBOT_PORT:-8081}"
 BASE="http://${HOST}:${PORT}"
 TIMEOUT="${MICROBOT_TIMEOUT:-30}"
+WIKI_API="https://oldschool.runescape.wiki/api.php"
 
 TOKEN_FILE="${MICROBOT_TOKEN_FILE:-${HOME}/.runelite/.agent-token}"
 LEGACY_TOKEN_FILES=(
@@ -52,7 +53,7 @@ Game State:
   varp <id>                              Read a varp (player variable) value
 
 OSRS Wiki:
-  wiki <query> [--limit N]               Search item, NPC, object, and game info
+  wiki <query> [--limit N]               Offline search for item, NPC, object, and game info
 
 Inventory:
   inventory                              List inventory items
@@ -156,6 +157,27 @@ do_get() {
 
 do_post() {
     curl -sf --max-time "$TIMEOUT" "${AUTH_HEADER_ARGS[@]}" -X POST -H "Content-Type: application/json" -d "$2" "$1" 2>/dev/null || { echo '{"error":"Connection refused - is the Agent Server plugin enabled?"}'; exit 1; }
+}
+
+do_wiki_search() {
+    local query="$1" limit="$2"
+    curl -sf --max-time "$TIMEOUT" \
+        -A 'Microbot Codex wiki lookup (https://github.com/chsami/microbot)' \
+        -H 'Accept: application/json' \
+        --get "$WIKI_API" \
+        --data-urlencode 'action=query' \
+        --data-urlencode 'generator=search' \
+        --data-urlencode "gsrsearch=${query}" \
+        --data-urlencode 'gsrnamespace=0' \
+        --data-urlencode "gsrlimit=${limit}" \
+        --data-urlencode 'prop=extracts|info' \
+        --data-urlencode 'exintro=1' \
+        --data-urlencode 'explaintext=1' \
+        --data-urlencode 'exsentences=3' \
+        --data-urlencode 'inprop=url' \
+        --data-urlencode 'format=json' \
+        --data-urlencode 'formatversion=2' \
+        2>/dev/null || { echo '{"error":"Could not reach the OSRS Wiki"}'; exit 1; }
 }
 
 build_query() {
@@ -298,16 +320,22 @@ case "$1" in
     wiki)
         [[ $# -lt 2 ]] && { echo '{"error":"Usage: microbot-cli wiki <query> [--limit N]"}'; exit 1; }
         wiki_query="$2"
-        wiki_limit=""
+        wiki_limit="5"
         shift 2
         while [[ $# -gt 0 ]]; do
             case "$1" in
-                --limit) wiki_limit="$2"; shift 2 ;;
+                --limit)
+                    [[ $# -lt 2 ]] && { echo '{"error":"--limit requires a value"}'; exit 1; }
+                    wiki_limit="$2"
+                    shift 2
+                    ;;
                 *) echo "{\"error\":\"Unknown flag: $1\"}"; exit 1 ;;
             esac
         done
-        q=$(build_query "q" "$wiki_query" "limit" "$wiki_limit")
-        do_get "${BASE}/wiki${q}"
+        [[ "$wiki_limit" =~ ^[0-9]+$ ]] || { echo '{"error":"--limit must be a number"}'; exit 1; }
+        (( wiki_limit >= 1 )) || { echo '{"error":"--limit must be at least 1"}'; exit 1; }
+        (( wiki_limit <= 10 )) || wiki_limit=10
+        do_wiki_search "$wiki_query" "$wiki_limit"
         ;;
 
     inventory)

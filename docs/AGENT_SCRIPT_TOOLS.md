@@ -32,6 +32,7 @@ The **Agent Server** plugin (port 8081, localhost) must be enabled for any CLI/H
 | `./gradlew :client:compileJava` | Fast compile check (~15 s) |
 | `./gradlew :client:runUnitTests` | CI-safe tests incl. client-thread guardrail |
 | `./microbot-cli ct <method>` | Thread-safety lookup for any RuneLite API method |
+| `./microbot-cli wiki <query> [--limit N]` | Search OSRS Wiki for development context; no client or login required |
 | `./gradlew :client:runClientThreadScanner` | Regenerate thread-safety manifest + TSV |
 | `./gradlew :client:regenerateClientThreadGuardrailBaseline` | Update guardrail allow-list after intentional refactors |
 
@@ -54,7 +55,6 @@ The **Agent Server** plugin (port 8081, localhost) must be enabled for any CLI/H
 | CLI Command | Purpose |
 |-------------|---------|
 | `state` | Game state, player position, health, animation, combat level |
-| `wiki <query> [--limit N]` | Search OSRS Wiki and return ranked article summaries |
 | `skills [--name X]` | All skill levels, boosted levels, XP |
 | `varbit <id>` | Read a varbit value (critical for verifying settings) |
 | `inventory` | Inventory items with id, name, quantity, slot, actions |

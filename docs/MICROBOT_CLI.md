@@ -6,7 +6,7 @@ The CLI is located at the repository root: `./microbot-cli`
 
 ## Prerequisites
 
-1. The Microbot client must be running
+1. The Microbot client must be running (except for the offline `wiki` and `client-thread` commands)
 2. The **Agent Server** plugin must be enabled in the plugin list
 3. `curl` must be available on the system (standard on Linux/macOS)
 4. A POSIX shell (`bash`) — the CLI is a bash script. On Windows, run it from **WSL** or **Git Bash**. macOS users with the default `/bin/bash` 3.2 are supported (the script avoids Bash 4+ features like namerefs).
@@ -59,14 +59,14 @@ MICROBOT_PORT=9090 ./microbot-cli state
 
 ### OSRS Wiki
 
-Searches OSRS Wiki article introductions and returns structured JSON with the title, page ID, URL, and a short summary. Use this to identify unfamiliar items, NPCs, objects, locations, or mechanics. The client and Agent Server must be running, but the command does not require a logged-in game session.
+Directly searches OSRS Wiki article introductions and returns MediaWiki JSON containing ranked titles, page IDs, URLs, and short summaries. Use this when Codex needs to identify unfamiliar items, NPCs, objects, locations, or mechanics while developing a script. It requires internet access and `curl`, but does not require the Microbot client, Agent Server, or a game session.
 
 ```bash
 ./microbot-cli wiki "mysterious stranger"
 ./microbot-cli wiki "dragon defender" --limit 3
 ```
 
-The result limit defaults to 5 and is capped at 10.
+The result limit defaults to 5 and is capped at 10. Unlike runtime commands, the Wiki request is sent directly to OSRS Wiki and never includes the local Agent Server authentication token.
 
 ### Game State
 
