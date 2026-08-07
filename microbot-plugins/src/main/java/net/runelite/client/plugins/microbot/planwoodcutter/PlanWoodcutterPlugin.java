@@ -10,8 +10,8 @@ import javax.inject.Inject;
 
 @PluginDescriptor(
         name = PluginDescriptor.Plan + "Woodcutter",
-        description = "Planned Woodcutter automation",
-        tags = {"plan", "microbot", "automation"},
+        description = "Cuts the closest selected tree and drops logs or fletches arrow shafts",
+        tags = {"plan", "microbot", "automation", "woodcutting", "fletching"},
         enabledByDefault = false
 )
 @ControlCenterPlugin(id = "plan-woodcutter")
