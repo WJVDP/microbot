@@ -3,6 +3,7 @@ package net.runelite.client.plugins.microbot.planwoodcutter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ObjectComposition;
 import net.runelite.api.Skill;
+import net.runelite.api.WorldType;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.api.tileobject.models.Rs2TileObjectModel;
 import net.runelite.client.plugins.microbot.statemachine.StateMachineScript;
@@ -13,9 +14,9 @@ import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.skills.fletching.Rs2Fletching;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
@@ -27,6 +28,8 @@ public class PlanWoodcutterScript
     private static final int ACTION_TIMEOUT_MS = 5_000;
     private static final int INVENTORY_TIMEOUT_MS = 10_000;
     private static final int LOOP_DELAY_MS = 600;
+    private static final Set<String> WOODCUTTING_ACTIONS = Set.of(
+            "chop down", "chop", "cut down", "cut", "chop-down");
 
     enum State
     {
@@ -39,6 +42,8 @@ public class PlanWoodcutterScript
     private PlanWoodcutterConfig config;
     private int woodcuttingLevel = -1;
     private int fletchingLevel = -1;
+    private boolean inMembersWorld;
+    private String inventoryClearFailure;
 
     @Override
     protected State initialState()
@@ -67,6 +72,11 @@ public class PlanWoodcutterScript
                         .because("A required item or level is missing")
                         .goTo(State.ERROR),
                 Transition.<State>from(State.CLEAR_INVENTORY)
+                        .when(() -> Rs2Inventory.isFull() && inventoryClearFailure != null,
+                                "Rs2Inventory.isFull() && inventoryClearFailure != null")
+                        .because("The inventory clearing attempt failed")
+                        .goTo(State.ERROR),
+                Transition.<State>from(State.CLEAR_INVENTORY)
                         .when(() -> Rs2Inventory.isFull() && !canClearInventory(),
                                 "Rs2Inventory.isFull() && !canClearInventory()")
                         .because("The full inventory has no processable logs")
@@ -76,8 +86,8 @@ public class PlanWoodcutterScript
                         .because("Inventory has space")
                         .goTo(State.CHECK_REQUIREMENTS),
                 Transition.<State>from(State.ERROR)
-                        .when(() -> Rs2Inventory.isFull() && canClearInventory(),
-                                "Rs2Inventory.isFull() && canClearInventory()")
+                        .when(() -> Rs2Inventory.isFull() && canRetryClearInventory(),
+                                "Rs2Inventory.isFull() && canRetryClearInventory()")
                         .because("Full inventory can now be cleared")
                         .goTo(State.CLEAR_INVENTORY),
                 Transition.<State>from(State.ERROR)
@@ -94,7 +104,8 @@ public class PlanWoodcutterScript
         switch (state)
         {
             case CHECK_REQUIREMENTS:
-                refreshSkillLevels();
+                refreshRequirements();
+                inventoryClearFailure = null;
                 Microbot.status = "Checking Woodcutter requirements";
                 break;
             case CHOP:
@@ -104,7 +115,7 @@ public class PlanWoodcutterScript
                 clearInventory();
                 break;
             case ERROR:
-                refreshSkillLevels();
+                refreshRequirements();
                 Microbot.status = requirementError();
                 break;
             default:
@@ -112,10 +123,13 @@ public class PlanWoodcutterScript
         }
     }
 
-    private void refreshSkillLevels()
+    private void refreshRequirements()
     {
         woodcuttingLevel = Rs2Player.getBoostedSkillLevel(Skill.WOODCUTTING);
         fletchingLevel = Rs2Player.getBoostedSkillLevel(Skill.FLETCHING);
+        inMembersWorld = Microbot.getClientThread().runOnClientThreadOptional(
+                () -> Microbot.getClient().getWorldType().contains(WorldType.MEMBERS))
+                .orElse(false);
     }
 
     private boolean requirementsKnownAndMissing()
@@ -141,6 +155,7 @@ public class PlanWoodcutterScript
         if (config.fullInventoryAction() == PlanWoodcutterFullInventoryAction.ARROW_SHAFTS)
         {
             return treeType.supportsArrowShafts()
+                    && inMembersWorld
                     && fletchingLevel >= treeType.getArrowShaftLevel()
                     && Rs2Fletching.hasKnife();
         }
@@ -169,6 +184,10 @@ public class PlanWoodcutterScript
             {
                 return treeType + " logs cannot make arrow shafts";
             }
+            if (!inMembersWorld)
+            {
+                return "A members world is required for arrow shafts";
+            }
             if (fletchingLevel < treeType.getArrowShaftLevel())
             {
                 return "Fletching level " + treeType.getArrowShaftLevel() + " required";
@@ -176,6 +195,10 @@ public class PlanWoodcutterScript
             if (!Rs2Fletching.hasKnife())
             {
                 return "A knife is required for arrow shafts";
+            }
+            if (inventoryClearFailure != null)
+            {
+                return inventoryClearFailure;
             }
         }
         if (Rs2Inventory.isFull() && !canClearInventory())
@@ -187,7 +210,7 @@ public class PlanWoodcutterScript
 
     private void chopClosestTree()
     {
-        refreshSkillLevels();
+        refreshRequirements();
         if (!requirementsMet())
         {
             Microbot.status = requirementError();
@@ -203,7 +226,7 @@ public class PlanWoodcutterScript
         Rs2TileObjectModel tree = Microbot.getRs2TileObjectCache().query()
                 .fromWorldView()
                 .where(object -> config.treeType().matches(object.getName(), config.customTreeName()))
-                .where(PlanWoodcutterScript::hasChopDownAction)
+                .where(object -> woodcuttingAction(object) != null)
                 .nearestOnClientThread();
 
         if (tree == null)
@@ -212,25 +235,47 @@ public class PlanWoodcutterScript
             return;
         }
 
+        String action = woodcuttingAction(tree);
+        if (action == null)
+        {
+            Microbot.status = "No " + config.treeType() + " tree found nearby";
+            return;
+        }
+
         Microbot.status = "Cutting " + config.treeType();
-        tree.click("Chop down");
+        tree.click(action);
         sleepUntil(() -> Rs2Player.isMoving()
                 || Rs2Antiban.isWoodcutting()
                 || Rs2Inventory.isFull(), ACTION_TIMEOUT_MS);
     }
 
-    private static boolean hasChopDownAction(Rs2TileObjectModel object)
+    private static String woodcuttingAction(Rs2TileObjectModel object)
     {
         ObjectComposition composition = object.getObjectComposition();
         if (composition == null)
         {
-            return false;
+            return null;
         }
 
-        String[] actions = composition.getActions();
-        return actions != null && Arrays.stream(actions)
-                .filter(Objects::nonNull)
-                .anyMatch("Chop down"::equalsIgnoreCase);
+        return findWoodcuttingAction(composition.getActions());
+    }
+
+    static String findWoodcuttingAction(String[] actions)
+    {
+        if (actions == null)
+        {
+            return null;
+        }
+
+        for (String action : actions)
+        {
+            if (action != null
+                    && WOODCUTTING_ACTIONS.contains(action.trim().toLowerCase(Locale.ROOT)))
+            {
+                return action;
+            }
+        }
+        return null;
     }
 
     private boolean canClearInventory()
@@ -242,24 +287,47 @@ public class PlanWoodcutterScript
 
         PlanWoodcutterTreeType treeType = config.treeType();
         return treeType.supportsArrowShafts()
+                && inMembersWorld
                 && fletchingLevel >= treeType.getArrowShaftLevel()
                 && Rs2Fletching.hasKnife()
                 && Rs2Inventory.hasItem(treeType.getLogItemId());
+    }
+
+    private boolean canRetryClearInventory()
+    {
+        return canClearInventory()
+                && (inventoryClearFailure == null
+                || config.fullInventoryAction() != PlanWoodcutterFullInventoryAction.ARROW_SHAFTS);
     }
 
     private void clearInventory()
     {
         if (config.fullInventoryAction() == PlanWoodcutterFullInventoryAction.DROP_LOGS)
         {
+            inventoryClearFailure = null;
             Microbot.status = "Dropping logs";
             Rs2Inventory.dropAll(PlanWoodcutterData::isLog, InteractOrder.ZIGZAG);
             sleepUntil(() -> !Rs2Inventory.isFull(), INVENTORY_TIMEOUT_MS);
             return;
         }
 
+        refreshRequirements();
+        if (!canClearInventory())
+        {
+            Microbot.status = requirementError();
+            return;
+        }
+
         PlanWoodcutterTreeType treeType = config.treeType();
         Microbot.status = "Cutting logs into arrow shafts";
-        Rs2Fletching.fletchItems(treeType.getLogItemId(), "arrow shaft", "All");
+        if (!Rs2Fletching.fletchItems(treeType.getLogItemId(), "arrow shaft", "All"))
+        {
+            inventoryClearFailure = "Failed to cut logs into arrow shafts";
+            Microbot.status = inventoryClearFailure;
+            return;
+        }
+
+        inventoryClearFailure = null;
     }
 
     @Override

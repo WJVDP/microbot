@@ -5,6 +5,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class PlanWoodcutterDataTest
@@ -38,7 +39,25 @@ public class PlanWoodcutterDataTest
     {
         assertTrue(PlanWoodcutterTreeType.OAK.matches("Oak tree", ""));
         assertTrue(PlanWoodcutterTreeType.MAGIC.matches("magic TREE", ""));
+        assertTrue(PlanWoodcutterTreeType.ARCTIC_PINE.matches("Arctic pine tree", ""));
         assertTrue(PlanWoodcutterTreeType.CUSTOM.matches("Cursed tree", " Cursed tree "));
         assertFalse(PlanWoodcutterTreeType.CUSTOM.matches("Tree", "Cursed tree"));
+    }
+
+    @Test
+    public void selectsEachSupportedWoodcuttingActionFromTheObject()
+    {
+        String[] woodcuttingActions = {"Chop down", "Chop", "Cut down", "Cut", "Chop-down"};
+        for (String action : woodcuttingActions)
+        {
+            assertEquals(action, PlanWoodcutterScript.findWoodcuttingAction(
+                    new String[]{"Inspect", action, null}));
+        }
+
+        assertEquals("Cut", PlanWoodcutterScript.findWoodcuttingAction(
+                new String[]{"Inspect", "Cut", "Chop down"}));
+        assertNull(PlanWoodcutterScript.findWoodcuttingAction(
+                new String[]{"Inspect", "Search"}));
+        assertNull(PlanWoodcutterScript.findWoodcuttingAction(null));
     }
 }
