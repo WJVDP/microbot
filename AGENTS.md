@@ -44,6 +44,55 @@ Read `docs/entity-guides/README.md`. Add a gotcha there when you fix an entity-a
 - Put volatile command details, API examples, endpoint lists, generated inventories, and screenshots in the narrowest owning doc.
 - Prefer links to owner docs over copying the same guidance into multiple high-level files.
 
+## Model routing and handoffs
+
+Choose models by the reasoning and autonomy the task needs: think expensive, type cheap. Official guidance positions GPT-5.6 Sol for frontier capability, Terra for the intelligence/cost balance, and Luna for efficient high-volume work. GPT-5.6 supports `none`, `low`, `medium`, `high`, `xhigh`, and `max` reasoning effort; use the lowest effort that reliably meets the task.
+
+| Task | Preferred model / effort |
+| --- | --- |
+| Architecture, system design, or requirements to technical specification | GPT-5.6 Sol — high |
+| Implementation planning | GPT-5.6 Sol — high (medium when the design is already settled) |
+| Substantial feature implementation | GPT-5.6 Sol — medium/high |
+| Normal everyday coding | GPT-5.6 Terra — medium |
+| Difficult debugging or cross-cutting root-cause analysis | GPT-5.6 Sol — high |
+| Simple refactors, boilerplate, or mechanical changes | GPT-5.6 Luna — low/medium, or Terra — low/medium |
+| Code review | GPT-5.6 Sol — medium/high; use high for security, concurrency, or architecture |
+| Tests | GPT-5.6 Terra — medium |
+| README, API docs, and comments | GPT-5.6 Terra or Luna — low/medium |
+| Tiny interactive questions | GPT-5.5 Instant when that ChatGPT mode is available; it is not a subagent model target |
+
+Before substantial work, classify the task using this table:
+
+- If the task divides cleanly into a concrete, bounded subtask and subagents with model overrides are available, delegate that subtask using the preferred model and reasoning effort. Give the subagent the goal, relevant repository context, constraints, expected deliverable, and validation commands. Do not delegate solely to change models when coordination would cost more than the work.
+- Follow any active system limits on delegation, concurrency, model availability, and model overrides. Never invent a model slug or silently claim that a requested model was used.
+- If the current agent is materially underpowered for a substantial task and cannot start an appropriate subagent, pause before implementation, recommend the model/effort to the user, and provide a copy-ready handoff message. Include completed work, current repository state, decisions, unresolved questions, exact next action, relevant files, and validation commands.
+- For routine or low-risk work, continue with the closest available model when the likely quality difference is immaterial, and mention the substitution briefly.
+
+Use this handoff shape:
+
+```text
+Switch to: <model> — <reasoning effort>
+Goal: <desired outcome>
+Repository state: <branch/worktree and completed work>
+Decisions and constraints: <source-of-truth requirements>
+Relevant files: <paths>
+Next action: <specific work to perform>
+Validate with: <commands and acceptance criteria>
+Open questions/risks: <remaining uncertainty>
+```
+
+For a non-trivial new application or feature, prefer this sequence:
+
+1. Architecture — Sol high: establish boundaries, components, data flows, APIs, persistence, failure modes, security, alternatives, and trade-offs.
+2. Specification — Sol high: make interfaces, data models, contracts, validation, edge cases, error handling, and acceptance criteria the source of truth.
+3. Implementation plan — Sol high/medium: create small dependency-ordered tasks that leave the repository working after each step.
+4. Implementation — Codex with Sol medium/high for important features or Terra medium for routine tickets; inspect the repository, edit, test, diagnose failures, and iterate.
+5. Review — Sol high: compare the diff with the specification, focusing on correctness, omissions, security, concurrency, abstractions, and unnecessary complexity.
+
+For serious projects, keep durable decisions in the narrowest appropriate owner documents, typically `docs/architecture.md`, `docs/specification.md`, and `docs/implementation-plan.md`; update existing domain docs or ADRs instead of duplicating them. GPT-5.6 has a 1.05M-token context window, but source-of-truth artifacts are still preferable to repeatedly reconstructing decisions from prompts.
+
+Current model guidance: https://developers.openai.com/api/docs/guides/latest-model
+
 ## Deeper guides
 - Script authoring & threading: `runelite-client/.../microbot/AGENTS.md`
 - State machines (use for 3+ phase scripts): `.../microbot/statemachine/AGENTS.md`
