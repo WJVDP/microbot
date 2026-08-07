@@ -14,6 +14,11 @@ This creates package `microbot.planwoodcutter` with:
 - `PlanWoodcutterConfig`: loop timing and future user settings.
 - `PlanWoodcutterScript`: background state-machine loop.
 
+First-party automation plugins are stored under `microbot-plugins/`, outside
+the RuneLite client source tree. Gradle includes that directory in the
+`:client` source sets, so compile, run, test, and shaded-jar commands are
+unchanged.
+
 Naming convention: every planned plugin class starts with `Plan<PluginName>`.
 Its descriptor uses `PluginDescriptor.Plan`, rendering green `[Plan]` in the
 Microbot plugin list.

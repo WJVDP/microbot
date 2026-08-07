@@ -30,7 +30,8 @@ This README is intentionally short. Durable details live in the docs below so hi
 - Build shaded jar: `./gradlew :client:assemble`
 
 ## Code Map
-- Microbot plugin and scripts: `runelite-client/src/main/java/net/runelite/client/plugins/microbot`
+- Microbot runtime and legacy built-ins: `runelite-client/src/main/java/net/runelite/client/plugins/microbot`
+- First-party automation plugins: `microbot-plugins/src/main/java/net/runelite/client/plugins/microbot`
 - Reusable helpers: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/util`
 - Queryable caches: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/api`
 - Runtime agent tooling: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/agentserver`

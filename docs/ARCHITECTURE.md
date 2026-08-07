@@ -3,6 +3,7 @@
 ## Components & Interaction
 - **RuneLite client (`runelite-client`)**: Main application with Microbot hidden plugin (`MicrobotPlugin`) always enabled; entrypoint `net.runelite.client.RuneLite`. Builds shaded distribution via `shadowJar` + `microbotReleaseJar`.
 - **Microbot runtime**: `Microbot` singleton exposes caches, utilities, and script lifecycle helpers; `Script` base class drives scheduled script loops; `BlockingEventManager` preempts scripts when required UI/game states are detected.
+- **First-party automation plugins (`microbot-plugins`)**: Plan plugins live outside the RuneLite client source tree to minimize upstream-sync conflicts. The directory is included in the `:client` main/test source sets, so plugins compile, run, validate, and ship in the same shaded client jar.
 - **Queryable caches**: Guice-injected caches (`Rs2NpcCache`, `Rs2PlayerCache`, `Rs2TileItemCache`, `Rs2TileObjectCache`, `Rs2BoatCache`, `Rs2PlayerStateCache`) updated per tick and accessed via `Microbot.getRs2XxxCache().query()` or `.getStream()`. World-view aware for boats.
 - **Utilities (`microbot/util`)**: Facades over RuneLite APIs for player, inventory, banking, walking, etc.; expected to run on script threads, not the client thread.
 - **Included builds**: `runelite-api` (shared API artifacts), `runelite-gradle-plugin` (assemble/index/jarsign tasks), `cache` (cache tooling), `runelite-jshell` (JShell support). Root Gradle orchestrates via composite build.
@@ -19,6 +20,7 @@
 - **Threads**: Client thread (never block/sleep); script/executor threads (automation logic, sleeps allowed); blocking-event executor (resolves UI blockers). Use `ClientThread.runOnClientThreadOptional` for safe client access.
 - **Services vs libraries**: Microbot plugin runs inside client process; optional external calls are limited to configured telemetry/API clients; caches are in-memory per client instance.
 - **Distribution**: Shaded jar (`*-shaded.jar` and `microbot-<version>.jar`) produced in `runelite-client/build/libs`.
+- **Source ownership**: Client integration, runtime infrastructure, shared APIs, and utilities stay under `runelite-client`; new first-party automation belongs under `microbot-plugins`. Independently released or third-party plugins use the external plugin mechanism instead.
 
 ## Configuration & Environments
 - Gradle properties: `gradle.properties` holds `microbot.version`, `microbot.commit.sha`, optional repo credentials (`microbot.repo.*`), and `glslang.path` (populated by CI script).

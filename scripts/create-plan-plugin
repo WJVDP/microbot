@@ -13,7 +13,7 @@ plugin_slug="$(printf '%s' "$plugin_name" | sed -E 's/([A-Z]+)([A-Z][a-z])|([a-z
 control_center_id="plan-$plugin_slug"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 template_dir="$repo_root/scripts/plan-plugin-template"
-target_dir="$repo_root/runelite-client/src/main/java/net/runelite/client/plugins/microbot/$package_suffix"
+target_dir="$repo_root/microbot-plugins/src/main/java/net/runelite/client/plugins/microbot/$package_suffix"
 
 if [[ -e "$target_dir" ]]; then
   echo "Target already exists: $target_dir" >&2

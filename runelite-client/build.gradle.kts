@@ -54,6 +54,22 @@ plugins {
 
 }
 
+// First-party automation plugins live outside the RuneLite fork's source tree to
+// reduce conflicts when syncing upstream. They remain part of :client so local
+// development, validation, and shaded-jar packaging keep the same workflow.
+val firstPartyPluginsDirectory = rootProject.layout.projectDirectory.dir("microbot-plugins")
+
+sourceSets {
+    main {
+        java.srcDir(firstPartyPluginsDirectory.dir("src/main/java"))
+        resources.srcDir(firstPartyPluginsDirectory.dir("src/main/resources"))
+    }
+    test {
+        java.srcDir(firstPartyPluginsDirectory.dir("src/test/java"))
+        resources.srcDir(firstPartyPluginsDirectory.dir("src/test/resources"))
+    }
+}
+
 // Module-system flags required to extend com.apple.eawt.FullScreenAdapter on macOS
 // (OSXFullScreenAdapter). Without these, the JVM throws IllegalAccessError at class load.
 val macEawtJvmArgs = listOf(

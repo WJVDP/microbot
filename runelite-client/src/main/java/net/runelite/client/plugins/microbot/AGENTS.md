@@ -1,6 +1,10 @@
 # Microbot Plugin & Script Development
 
-Automation plugins live here. Every plugin = **Plugin class** (`@PluginDescriptor`, RuneLite lifecycle) + **Script class** (runs the loop on a background thread) + **Config** + optional **Overlay**.
+Microbot runtime infrastructure and legacy built-ins live here. New first-party
+automation plugins live under `microbot-plugins/src/main/java/net/runelite/client/plugins/microbot`.
+Gradle compiles both trees as part of `:client`. Every automation plugin =
+**Plugin class** (`@PluginDescriptor`, RuneLite lifecycle) + **Script class**
+(runs the loop on a background thread) + **Config** + optional **Overlay**.
 
 Config UI uses the custom `MicrobotConfigPanel` (`plugins/microbot/ui`), not RuneLite's default.
 

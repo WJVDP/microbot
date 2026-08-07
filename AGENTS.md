@@ -18,6 +18,7 @@ RuneLite fork with a hidden always-on plugin hosting automation scripts. Composi
 
 ## Plan plugin convention
 - New automation plugins created for this workspace must use the `Plan<PluginName>` Java prefix, for example `PlanWoodcutterPlugin`, `PlanWoodcutterScript`, and `PlanWoodcutterConfig`.
+- Keep new first-party automation plugins under `microbot-plugins/src/main/java/net/runelite/client/plugins/microbot`; runtime infrastructure and shared utilities remain under `runelite-client`.
 - Use `PluginDescriptor.Plan + "PluginName"` so the Microbot plugin list renders a green `[Plan]` badge.
 - Scaffold with `./scripts/create-plan-plugin PluginName`; template and decision-model guidance live in `scripts/plan-plugin-template/README.md`.
 - Prefer `StateMachineScript` for 3+ phases. Order urgent recovery/requirement guards before normal work; guards inspect state, state actions perform interactions.

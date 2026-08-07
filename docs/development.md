@@ -9,6 +9,7 @@ Local setup, build commands, and script authoring entry points.
 
 ## Project Layout
 - Core plugin: `runelite-client/src/main/java/net/runelite/client/plugins/microbot`
+- First-party automation plugins: `microbot-plugins/src/main/java/net/runelite/client/plugins/microbot`
 - Helpers/utilities: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/util`
 - Queryable API: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/api`
 - Config UI: `runelite-client/src/main/java/net/runelite/client/plugins/microbot/ui/MicrobotConfigPanel`
@@ -31,7 +32,7 @@ Local setup, build commands, and script authoring entry points.
 4. Create a Gradle run configuration for `:client:run` when launching from the IDE.
 
 ## Developing Scripts
-- Place new scripts inside the microbot plugin folder: `runelite-client/src/main/java/net/runelite/client/plugins/microbot`.
+- Place new first-party automation plugins under `microbot-plugins/src/main/java/net/runelite/client/plugins/microbot`. Keep runtime infrastructure, shared APIs, utilities, and client integration under `runelite-client`.
 - Scaffold a planned automation plugin with `./scripts/create-plan-plugin Woodcutter`. Generated classes use the `Plan<PluginName>` prefix, show a green `[Plan]` badge, and opt into the local control center with a stable id. See `scripts/plan-plugin-template/README.md`.
 - Reusable helpers belong in `microbot/util`.
 - Config UI goes in `microbot/ui/MicrobotConfigPanel`.
