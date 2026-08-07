@@ -132,6 +132,17 @@ public class PlanFiremakerPlannerTest
                 Integer.MAX_VALUE, 0, 0, 0, 0, 0, 0, 0, 0), PlanFiremakerLogType.NORMAL);
 
         assertEquals(Experience.MAX_SKILL_XP, plan.getProjectedXp());
+        assertTrue(plan.getLockedAtEnd().isEmpty());
+    }
+
+    @Test
+    public void doesNotClassifyUnlockedXpCapLeftoversAsLocked()
+    {
+        PlanFiremakerPlan plan = planner.plan(Experience.MAX_SKILL_XP - 10, 99, quantities(
+                10, 10, 0, 0, 0, 0, 0, 0, 0), PlanFiremakerLogType.OAK);
+
+        assertEquals(Experience.MAX_SKILL_XP, plan.getProjectedXp());
+        assertTrue(plan.getLockedAtEnd().isEmpty());
     }
 
     private static void assertStep(

@@ -34,7 +34,7 @@ final class PlanFiremakerPlanner
                 exhaustion.endingXp,
                 Experience.getLevelForXp(exhaustion.endingXp),
                 exhaustion.steps,
-                exhaustion.remaining);
+                lockedLogs(exhaustion.remaining, exhaustion.endingXp));
     }
 
     static EnumMap<PlanFiremakerLogType, Integer> mergeQuantities(
@@ -171,6 +171,23 @@ final class PlanFiremakerPlanner
     private static long ceilingDivide(long numerator, long denominator)
     {
         return (numerator + denominator - 1L) / denominator;
+    }
+
+    private static EnumMap<PlanFiremakerLogType, Integer> lockedLogs(
+            EnumMap<PlanFiremakerLogType, Integer> remaining,
+            int endingXp)
+    {
+        int endingLevel = Experience.getLevelForXp(endingXp);
+        EnumMap<PlanFiremakerLogType, Integer> locked =
+                new EnumMap<>(PlanFiremakerLogType.class);
+        for (Map.Entry<PlanFiremakerLogType, Integer> entry : remaining.entrySet())
+        {
+            if (entry.getKey().getRequiredLevel() > endingLevel && entry.getValue() > 0)
+            {
+                locked.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return locked;
     }
 
     private static final class Simulation

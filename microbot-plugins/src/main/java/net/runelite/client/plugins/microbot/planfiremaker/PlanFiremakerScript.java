@@ -161,6 +161,14 @@ public class PlanFiremakerScript
                         .because("The configured target was raised")
                         .goTo(State.CHECK_REQUIREMENTS),
                 Transition.<State>from(State.EXHAUSTED)
+                        .when(this::targetReached, "targetReached()")
+                        .because("The configured Firemaking target has been reached outside the script")
+                        .goTo(State.COMPLETE),
+                Transition.<State>from(State.EXHAUSTED)
+                        .when(this::hasBurnablePlan, "hasBurnablePlan()")
+                        .because("A Firemaking level change unlocked an available log tier")
+                        .goTo(State.CHECK_REQUIREMENTS),
+                Transition.<State>from(State.EXHAUSTED)
                         .when(this::resourcesChangedSinceExhaustion,
                                 "resourcesChangedSinceExhaustion()")
                         .because("The available logs or bank snapshot changed")
@@ -294,8 +302,9 @@ public class PlanFiremakerScript
         }
 
         int amount = Math.min(
-                Rs2Inventory.capacity() - Rs2Inventory.count(),
-                Rs2Bank.count(next.getItemId()));
+                configuredLineLength(),
+                Math.min(Rs2Inventory.capacity() - Rs2Inventory.count(),
+                        Rs2Bank.count(next.getItemId())));
         if (amount <= 0)
         {
             resourcesExhausted = true;
@@ -400,16 +409,16 @@ public class PlanFiremakerScript
             return;
         }
 
-        int beforeCount = Rs2Inventory.itemQuantity(logType.getItemId());
+        int beforeXp = currentFiremakingXp();
         Microbot.status = "Burning " + logType;
         boolean interacted = Rs2Inventory.hasItem(ItemID.TINDERBOX)
                 && Rs2Inventory.hasItem(logType.getItemId())
                 && Rs2Inventory.combine(ItemID.TINDERBOX, logType.getItemId());
-        boolean consumed = interacted && sleepUntil(
-                () -> Rs2Inventory.itemQuantity(logType.getItemId()) < beforeCount,
+        boolean lit = interacted && sleepUntil(
+                () -> currentFiremakingXp() > beforeXp,
                 ACTION_TIMEOUT_MS);
 
-        if (consumed)
+        if (lit)
         {
             lightingFailures = 0;
             refreshRuntimeState();
@@ -422,9 +431,7 @@ public class PlanFiremakerScript
 
     private void refreshRuntimeState()
     {
-        currentXp = Microbot.getClientThread().runOnClientThreadOptional(
-                () -> Microbot.getClient().getSkillExperience(Skill.FIREMAKING))
-                .orElse(currentXp);
+        currentXp = currentFiremakingXp();
         currentLevel = Experience.getLevelForXp(Math.max(0, currentXp));
         playerLocation = Rs2Player.getWorldLocation();
         bankEpoch = Rs2Bank.getBankLiveEpoch();
@@ -486,6 +493,18 @@ public class PlanFiremakerScript
         PlanFiremakerLogType inventoryType = inventoryLogType();
         PlanFiremakerLogType plannedType = plan == null ? null : plan.nextLogType();
         return inventoryType != null && plannedType != null && inventoryType != plannedType;
+    }
+
+    private boolean hasBurnablePlan()
+    {
+        return plan != null && plan.nextLogType() != null;
+    }
+
+    private int currentFiremakingXp()
+    {
+        return Microbot.getClientThread().runOnClientThreadOptional(
+                () -> Microbot.getClient().getSkillExperience(Skill.FIREMAKING))
+                .orElse(currentXp);
     }
 
     private boolean resourcesChangedSinceExhaustion()
@@ -608,14 +627,14 @@ public class PlanFiremakerScript
         return State.ERROR;
     }
 
-    public boolean run(PlanFiremakerConfig config)
+    public synchronized boolean run(PlanFiremakerConfig config)
     {
+        if (isRunning())
+        {
+            return true;
+        }
         this.config = config;
         resetRunState();
-        if (getSnapshot() != null)
-        {
-            forceState(State.CHECK_REQUIREMENTS, "Plugin restarted");
-        }
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try
             {
