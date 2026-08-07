@@ -8,13 +8,35 @@ import net.runelite.client.config.ConfigItem;
 public interface PlanWoodcutterConfig extends Config
 {
     @ConfigItem(
-            keyName = "loopDelay",
-            name = "Loop delay (ms)",
-            description = "Delay between automation decisions",
+            keyName = "treeType",
+            name = "Tree type",
+            description = "The type of tree to cut",
             position = 0
     )
-    default int loopDelay()
+    default PlanWoodcutterTreeType treeType()
     {
-        return 600;
+        return PlanWoodcutterTreeType.NORMAL;
+    }
+
+    @ConfigItem(
+            keyName = "customTreeName",
+            name = "Custom tree name",
+            description = "Exact in-game object name used when Tree type is Custom",
+            position = 1
+    )
+    default String customTreeName()
+    {
+        return "";
+    }
+
+    @ConfigItem(
+            keyName = "fullInventoryAction",
+            name = "Full inventory",
+            description = "What to do with logs when the inventory is full",
+            position = 2
+    )
+    default PlanWoodcutterFullInventoryAction fullInventoryAction()
+    {
+        return PlanWoodcutterFullInventoryAction.DROP_LOGS;
     }
 }
