@@ -251,6 +251,15 @@ public class ObjectStep extends DetailedQuestStep
 		return this;
 	}
 
+	/** Returns the reviewed primary and alternate target ids without live scene access. */
+	public List<Integer> allIds()
+	{
+		List<Integer> ids = new ArrayList<>();
+		ids.add(objectID);
+		ids.addAll(alternateObjectIDs);
+		return ids;
+	}
+
 	@Subscribe
 	public void onGameObjectSpawned(GameObjectSpawned event)
 	{

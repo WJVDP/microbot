@@ -34,6 +34,13 @@ RuneLite fork with a hidden always-on plugin hosting automation scripts. Composi
 - Offline client-thread lookup: `./microbot-cli ct <method>`.
 - Test mode: `-Dmicrobot.test.mode=true -Dmicrobot.test.script=<PluginName>` → results in `~/.runelite/test-results/`. Protocol: `docs/AGENTIC_TESTING_LOOP.md`.
 
+## Hybrid quest onboarding
+
+- An instruction to “add quest X to PlanQuesting” means follow `docs/questing/ADDING_A_QUEST.md` completely; adding only a config enum is not sufficient.
+- Create or update `docs/questing/quests/<quest-slug>.md` from `docs/questing/QUEST_DOSSIER_TEMPLATE.md`.
+- State the achieved support level (`AUDITED`, `OBSERVATION_ONLY`, `ATTENDED_PILOT`, `AGENT_RECOVERY_ENABLED`, or `RUNTIME_VALIDATED`) and never claim runtime validation from source inspection alone.
+- Unknown, dangerous, or structurally unidentified quest steps fail closed to manual control. Display text must not be the sole safety key, and an agent may never downgrade a manual gate.
+
 ## In-game settings
 Use the settings search bar — tab indices shift on updates. Verify changes via `./microbot-cli varbit <id>`.
 
@@ -44,6 +51,10 @@ Read `docs/entity-guides/README.md`. Add a gotcha there when you fix an entity-a
 - Keep root `README.md`, `docs/README.md`, and `docs/INDEX.md` short routing pages.
 - Put volatile command details, API examples, endpoint lists, generated inventories, and screenshots in the narrowest owning doc.
 - Prefer links to owner docs over copying the same guidance into multiple high-level files.
+
+## Discussion scope
+
+While discussing ideas, brainstorming, or doing high-level planning, do not start implementing. Only make code or repository changes when the user explicitly asks for implementation or explicitly agrees to proceed with it.
 
 ## Model routing and handoffs
 
