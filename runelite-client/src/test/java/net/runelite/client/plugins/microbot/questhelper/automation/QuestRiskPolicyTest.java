@@ -1,6 +1,6 @@
 package net.runelite.client.plugins.microbot.questhelper.automation;
 
-import net.runelite.api.NpcID;
+import net.runelite.api.gameval.NpcID;
 import net.runelite.api.gameval.ObjectID;
 import org.junit.Test;
 
@@ -13,9 +13,9 @@ public class QuestRiskPolicyTest
 	@Test
 	public void vampyreSlayerBossGatesAreAlwaysManual()
 	{
-		assertManual(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, ObjectID.CRYPTSTAIRSDOWN));
-		assertManual(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, ObjectID.VAMPCOFFIN));
-		assertManual(StepKey.npc(QuestRiskPolicy.VAMPYRE_SLAYER, NpcID.COUNT_DRAYNOR));
+		assertManual(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, 2, ObjectID.CRYPTSTAIRSDOWN));
+		assertManual(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, 2, ObjectID.VAMPCOFFIN));
+		assertManual(StepKey.npc(QuestRiskPolicy.VAMPYRE_SLAYER, 2, NpcID.COUNT_DRAYNOR));
 	}
 
 	@Test
@@ -25,14 +25,29 @@ public class QuestRiskPolicyTest
 			QuestRiskPolicy.MISTHALIN_MIRROR_REFLECTION));
 		assertManual(StepKey.questStage(QuestRiskPolicy.MISTHALIN_MYSTERY, 111,
 			QuestRiskPolicy.MISTHALIN_MIRROR_REFLECTION));
-		assertEquals(QuestRisk.SAFE_AUTOMATION, policy.classify(snapshot(StepKey.questStage(
+		assertEquals(QuestRisk.MANUAL_REQUIRED, policy.classify(snapshot(StepKey.questStage(
 			QuestRiskPolicy.MISTHALIN_MYSTERY, 110, "UNRELATED_STEP"))));
+	}
+
+	@Test
+	public void unknownStepsFailClosed()
+	{
+		assertManual(StepKey.object("An unsupported quest", 10, 123));
+		assertManual(StepKey.object(QuestRiskPolicy.MISTHALIN_MYSTERY, 10, 123));
+	}
+
+	@Test
+	public void reviewedPilotStepIsAllowlisted()
+	{
+		assertEquals(QuestRisk.SAFE_AUTOMATION, policy.classify(snapshot(StepKey.object(
+			QuestRiskPolicy.MISTHALIN_MYSTERY, 10, ObjectID.MISTMYST_BOAT_LUMBRIDGE))));
 	}
 
 	@Test
 	public void manualRiskPrecedesOtherwiseValidAgentProposal()
 	{
-		QuestStepSnapshot snapshot = snapshot(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, ObjectID.VAMPCOFFIN));
+		QuestStepSnapshot snapshot = snapshot(StepKey.object(QuestRiskPolicy.VAMPYRE_SLAYER, 2,
+			ObjectID.VAMPCOFFIN));
 		RecoveryProposal proposal = new RecoveryProposal(snapshot.getStepKey(), snapshot.getContextRevision(),
 			RecoveryAction.INTERACT_WITH_OBSERVED_OBJECT);
 
@@ -42,7 +57,8 @@ public class QuestRiskPolicyTest
 	@Test
 	public void rejectsProposalFromOlderContextRevision()
 	{
-		StepKey step = StepKey.object("A Quest", 123);
+		StepKey step = StepKey.object(QuestRiskPolicy.MISTHALIN_MYSTERY, 10,
+			ObjectID.MISTMYST_BOAT_LUMBRIDGE);
 		RecoveryProposal proposal = new RecoveryProposal(step, 7, RecoveryAction.OPEN_QUEST_JOURNAL);
 
 		assertEquals(RecoveryProposalValidation.STALE_CONTEXT, policy.validate(new QuestStepSnapshot(step, 8), proposal));
@@ -51,8 +67,10 @@ public class QuestRiskPolicyTest
 	@Test
 	public void rejectsProposalForDifferentStepEvenAtSameRevision()
 	{
-		QuestStepSnapshot current = new QuestStepSnapshot(StepKey.object("A Quest", 123), 8);
-		RecoveryProposal proposal = new RecoveryProposal(StepKey.object("A Quest", 456), 8,
+		QuestStepSnapshot current = new QuestStepSnapshot(StepKey.object(
+			QuestRiskPolicy.MISTHALIN_MYSTERY, 10, ObjectID.MISTMYST_BOAT_LUMBRIDGE), 8);
+		RecoveryProposal proposal = new RecoveryProposal(StepKey.object(
+			QuestRiskPolicy.MISTHALIN_MYSTERY, 10, ObjectID.MISTMYST_EMPTY_BUCKET), 8,
 			RecoveryAction.OPEN_QUEST_JOURNAL);
 
 		assertEquals(RecoveryProposalValidation.STEP_MISMATCH, policy.validate(current, proposal));
@@ -61,7 +79,8 @@ public class QuestRiskPolicyTest
 	@Test
 	public void acceptsSingleSafeProposalForCurrentSnapshot()
 	{
-		QuestStepSnapshot current = snapshot(StepKey.object("A Quest", 123));
+		QuestStepSnapshot current = snapshot(StepKey.object(QuestRiskPolicy.MISTHALIN_MYSTERY,
+			10, ObjectID.MISTMYST_BOAT_LUMBRIDGE));
 		RecoveryProposal proposal = new RecoveryProposal(current.getStepKey(), current.getContextRevision(),
 			RecoveryAction.OPEN_QUEST_JOURNAL);
 

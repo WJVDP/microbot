@@ -42,7 +42,7 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
     private QuestRisk risk = QuestRisk.MANUAL_REQUIRED;
     private boolean questSelected;
     private boolean completed;
-    private boolean resumeRequested;
+    private volatile boolean resumeRequested;
     private boolean contextChanged;
     private boolean noProgressExhausted;
     private long verificationDeadline;
@@ -78,6 +78,10 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
                         .goTo(State.CLASSIFY_STEP),
 
                 Transition.<State>from(State.CLASSIFY_STEP)
+                        .when(() -> error != null, "error != null")
+                        .because("Step classification failed")
+                        .goTo(State.ERROR),
+                Transition.<State>from(State.CLASSIFY_STEP)
                         .when(() -> risk == QuestRisk.MANUAL_REQUIRED,
                                 "risk == MANUAL_REQUIRED")
                         .because("The reviewed safety catalog requires player control")
@@ -88,6 +92,10 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
                         .because("The active step is eligible for deterministic execution")
                         .goTo(State.AUTOMATION_READY),
 
+                Transition.<State>from(State.AUTOMATION_READY)
+                        .when(() -> error != null, "error != null")
+                        .because("Deterministic execution failed")
+                        .goTo(State.ERROR),
                 Transition.<State>from(State.AUTOMATION_READY)
                         .when(() -> completed, "completed")
                         .because("Quest Helper reports the selected quest complete")
@@ -101,6 +109,10 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
                         .because("Quest Helper advanced to a different context")
                         .goTo(State.CLASSIFY_STEP),
 
+                Transition.<State>from(State.MANUAL_REQUIRED)
+                        .when(() -> error != null, "error != null")
+                        .because("Manual handoff failed")
+                        .goTo(State.ERROR),
                 Transition.<State>from(State.MANUAL_REQUIRED)
                         .when(() -> resumeRequested, "resumeRequested")
                         .because("The player requested a fresh safety evaluation")
@@ -126,14 +138,25 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
                 waitForPlayer();
                 break;
             case COMPLETE:
+                releaseAutomationAuthority("plan-questing:complete");
                 publish("Quest complete", "NONE", "The selected quest is complete");
                 break;
             case ERROR:
+                releaseAutomationAuthority("plan-questing:error");
                 publish("Stopped", "NONE", error == null ? "Unknown error" : error);
                 break;
             default:
                 throw new IllegalStateException("Unhandled state: " + state);
         }
+    }
+
+    @Override
+    protected State onError(State state, Exception exception)
+    {
+        error = exception.getClass().getSimpleName() + ": " + exception.getMessage();
+        log.error("[PlanQuesting] State {} failed: {}", state, exception.getMessage());
+        releaseAutomationAuthority("plan-questing:state-error");
+        return State.ERROR;
     }
 
     @Override
@@ -282,7 +305,24 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
         {
             return "Deterministic recovery made no progress; complete the step and press Resume";
         }
-        return "Complete the unsupported mirror sequence, then press Resume";
+        if (QuestRiskPolicy.MISTHALIN_MYSTERY.equals(current.getStepKey().getQuestName()) &&
+                (current.getStepKey().getQuestStage() == 110 ||
+                        current.getStepKey().getQuestStage() == 111))
+        {
+            return "Complete the unsupported mirror sequence, then press Resume";
+        }
+        return "Complete the unreviewed step manually, then press Resume";
+    }
+
+    private void releaseAutomationAuthority(String reason)
+    {
+        if (!leaseHeld)
+        {
+            return;
+        }
+        Rs2Walker.clearWalkingRoute(reason);
+        QuestAutomationLease.release(QuestAutomationLease.Owner.PLAN_QUESTING);
+        leaseHeld = false;
     }
 
     private void publish(String action, String authority, String reason)
@@ -303,6 +343,7 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
     public boolean run(PlanQuestingConfig config)
     {
         this.config = config;
+        error = null;
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try
             {
@@ -324,9 +365,7 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
     public void shutdown()
     {
         super.shutdown();
-        Rs2Walker.clearWalkingRoute("plan-questing:shutdown");
-        QuestAutomationLease.release(QuestAutomationLease.Owner.PLAN_QUESTING);
-        leaseHeld = false;
+        releaseAutomationAuthority("plan-questing:shutdown");
         questSelected = false;
         completed = false;
         resumeRequested = false;
@@ -336,6 +375,8 @@ public class PlanQuestingScript extends StateMachineScript<PlanQuestingScript.St
         attempts = 0;
         snapshot = null;
         snapshotFactory.reset();
+        error = null;
+        risk = QuestRisk.MANUAL_REQUIRED;
         status = PlanQuestingStatus.waiting();
     }
 }
