@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlanQuesting authority prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101413;
+      --panel: #18201e;
+      --panel-2: #202a27;
+      --text: #eaf2ef;
+      --muted: #a7b7b1;
+      --accent: #51d196;
+      --warning: #f0b35b;
+      --danger: #ef7474;
+      --line: #33423e;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, sans-serif;
+    }
+    main { width: min(1080px, calc(100% - 32px)); margin: 36px auto 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 0; font-size: 18px; }
+    .intro { color: var(--muted); max-width: 850px; }
+    .notice {
+      border-left: 3px solid var(--warning);
+      background: #251f17;
+      padding: 12px 14px;
+      margin: 22px 0;
+    }
+    .grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+    .state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .field { background: var(--panel-2); border-radius: 7px; padding: 11px; min-height: 68px; }
+    .label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .value { font-weight: 650; overflow-wrap: anywhere; }
+    .wide { grid-column: span 3; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      background: #26332f;
+      color: var(--text);
+      border: 1px solid #41544e;
+      border-radius: 7px;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    button.primary { background: #174f3a; border-color: var(--accent); }
+    button.danger { background: #4d2424; border-color: var(--danger); }
+    .badge { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+    .badge.safe { color: var(--accent); }
+    .badge.manual, .badge.emergency { color: var(--danger); }
+    .badge.caution { color: var(--warning); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .tabs button.active { border-color: var(--accent); color: var(--accent); }
+    .scenario-step { display: flex; align-items: center; gap: 10px; margin: 9px 0; }
+    .scenario-step span { color: var(--muted); }
+    .scenario-step.current span { color: var(--text); }
+    .scenario-step.done { opacity: .55; }
+    ol.log { margin: 0; padding-left: 22px; max-height: 420px; overflow: auto; }
+    ol.log li { margin-bottom: 7px; color: var(--muted); }
+    ol.log li:last-child { color: var(--text); }
+    .invariant { color: var(--accent); }
+    .invariant.broken { color: var(--danger); }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+      .state-grid { grid-template-columns: 1fr 1fr; }
+      .wide { grid-column: span 2; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>PlanQuesting authority prototype</h1>
+  <p class="intro">
+    This throwaway demo asks whether a quest can safely move between deterministic automation,
+    one bounded agent recovery, and player control without two actors acting at once or an agent
+    bypassing a dangerous-content gate.
+  </p>
+  <div class="notice"><strong>Prototype only.</strong> It does not connect to RuneLite, an agent, or the Wiki. State lives in this page and disappears on refresh.</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Current session</h2>
+      <div id="state" class="state-grid"></div>
+    </section>
+    <section class="card">
+      <h2>Safety checks</h2>
+      <p id="singleAuthority" class="invariant"></p>
+      <p id="dangerGate" class="invariant"></p>
+      <p id="freshness" class="invariant"></p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <h2>Free play</h2>
+    <div id="freePlay" class="controls"></div>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <h2>Guided walkthroughs</h2>
+    <div id="tabs" class="tabs"></div>
+    <div id="scenario"></div>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <h2>Event log</h2>
+    <ol id="log" class="log"></ol>
+  </section>
+</main>
+
+<script>
+// Portable pure state module. It has no DOM dependencies.
+const PlanQuestingAuthority = (() => {
+  const initial = () => ({
+    quest: "None",
+    step: "No active quest step",
+    risk: "SAFE",
+    state: "IDLE",
+    authority: "NONE",
+    revision: 0,
+    attempts: 0,
+    recoveryRequest: null,
+    proposalRevision: null,
+    manualReason: null,
+    lastChange: "Session is idle",
+    violations: [],
+    log: ["Session created with no authority"]
+  });
+
+  const append = (state, message, changes = {}) => ({
+    ...state,
+    ...changes,
+    lastChange: message,
+    log: [...state.log, message].slice(-30)
+  });
+
+  const reject = (state, message) => append(state, `Rejected: ${message}`);
+
+  function reduce(state, action) {
+    if (action.type === "RESET") return initial();
+    if (action.type === "EMERGENCY") {
+      return append(state, "Emergency stop released all authority", {
+        state: "EMERGENCY_STOP", authority: "NONE", recoveryRequest: null,
+        manualReason: "Emergency stop"
+      });
+    }
+
+    switch (action.type) {
+      case "LOAD_MISTHALIN":
+        return append(state, "Loaded a safe Misthalin Mystery door/passage step", {
+          quest: "Misthalin Mystery", step: "Cross the damaged wall",
+          risk: "SAFE", state: "EXECUTE_AUTOMATED", authority: "AUTOMATION",
+          revision: state.revision + 1, attempts: 0, recoveryRequest: null,
+          proposalRevision: null, manualReason: null
+        });
+      case "LOAD_VAMPYRE_BOSS":
+        return append(state, "Fresh snapshot found the Count Draynor basement gate", {
+          quest: "Vampyre Slayer", step: "Descend to Count Draynor's basement",
+          risk: "MANUAL_REQUIRED", state: "MANUAL_REQUIRED", authority: "PLAYER",
+          revision: state.revision + 1, attempts: 0, recoveryRequest: null,
+          proposalRevision: null, manualReason: "Boss encounter ahead"
+        });
+      case "AUTO_PROGRESS":
+        if (state.authority !== "AUTOMATION" || state.risk === "MANUAL_REQUIRED") {
+          return reject(state, "automation does not own this step");
+        }
+        return append(state, "Semantic progress observed; the next safe step is ready", {
+          state: "EXECUTE_AUTOMATED", revision: state.revision + 1,
+          attempts: 0, recoveryRequest: null
+        });
+      case "AUTO_NO_PROGRESS": {
+        if (state.authority !== "AUTOMATION" || state.risk === "MANUAL_REQUIRED") {
+          return reject(state, "automation does not own this step");
+        }
+        const attempts = state.attempts + 1;
+        if (attempts >= 3) {
+          return append(state, "Three verified attempts made no progress; local recovery took authority", {
+            state: "LOCAL_RECOVERY", authority: "AUTOMATION", attempts
+          });
+        }
+        return append(state, `Attempt ${attempts} made no semantic progress`, { attempts });
+      }
+      case "LOCAL_RECOVERY_WORKED":
+        if (state.state !== "LOCAL_RECOVERY") return reject(state, "local recovery is not active");
+        return append(state, "Local recovery changed the active context", {
+          state: "EXECUTE_AUTOMATED", authority: "AUTOMATION",
+          revision: state.revision + 1, attempts: 0
+        });
+      case "LOCAL_RECOVERY_FAILED":
+        if (state.state !== "LOCAL_RECOVERY") return reject(state, "local recovery is not active");
+        return append(state, "Local recovery failed; a focused agent request was published", {
+          state: "WAITING_FOR_AGENT", authority: "NONE",
+          recoveryRequest: `recovery-${state.revision}`
+        });
+      case "AGENT_SAFE_PROPOSAL":
+        if (state.state !== "WAITING_FOR_AGENT") return reject(state, "there is no active recovery request");
+        if (state.risk === "MANUAL_REQUIRED") return reject(state, "agents cannot override a manual gate");
+        return append(state, "A fresh allowlisted proposal received one-action authority", {
+          state: "EXECUTE_AGENT_PROPOSAL", authority: "AGENT",
+          proposalRevision: state.revision
+        });
+      case "AGENT_STALE_PROPOSAL":
+        if (state.state !== "WAITING_FOR_AGENT") return reject(state, "there is no active recovery request");
+        return append(state, "Rejected: proposal revision is stale; no action was performed", {
+          proposalRevision: Math.max(0, state.revision - 1)
+        });
+      case "AGENT_UNSAFE_PROPOSAL":
+        if (state.state !== "WAITING_FOR_AGENT" && state.state !== "MANUAL_REQUIRED") {
+          return reject(state, "there is no proposal boundary to validate");
+        }
+        return append(state, "Unsafe proposal rejected; player control is now required", {
+          state: "MANUAL_REQUIRED", authority: "PLAYER", recoveryRequest: null,
+          manualReason: "Agent requested an action outside the safety policy"
+        });
+      case "AGENT_PROGRESS":
+        if (state.authority !== "AGENT" || state.proposalRevision !== state.revision) {
+          return reject(state, "agent authority is absent or stale");
+        }
+        return append(state, "The bounded agent action produced semantic progress", {
+          state: "EXECUTE_AUTOMATED", authority: "AUTOMATION",
+          revision: state.revision + 1, attempts: 0, recoveryRequest: null,
+          proposalRevision: null
+        });
+      case "AGENT_FAILED":
+      case "AGENT_ABSTAINED":
+        if (state.state !== "WAITING_FOR_AGENT" && state.authority !== "AGENT") {
+          return reject(state, "no agent recovery is active");
+        }
+        return append(state, action.type === "AGENT_ABSTAINED" ?
+          "Agent abstained; player control is required" :
+          "Agent recovery did not produce progress; player control is required", {
+          state: "MANUAL_REQUIRED", authority: "PLAYER", recoveryRequest: null,
+          proposalRevision: null, manualReason: "Automated recovery was inconclusive"
+        });
+      case "PLAYER_RESUME_UNCHANGED":
+        if (state.authority !== "PLAYER") return reject(state, "player control is not active");
+        if (state.risk === "MANUAL_REQUIRED") {
+          return append(state, "Fresh snapshot still contains the boss gate; remaining manual", {
+            state: "MANUAL_REQUIRED", authority: "PLAYER"
+          });
+        }
+        return append(state, "Player requested resume and the fresh step is safe", {
+          state: "EXECUTE_AUTOMATED", authority: "AUTOMATION",
+          revision: state.revision + 1, attempts: 0, manualReason: null
+        });
+      case "PLAYER_COMPLETED_BOSS":
+        if (state.authority !== "PLAYER" || state.quest !== "Vampyre Slayer") {
+          return reject(state, "the Vampyre Slayer player handoff is not active");
+        }
+        return append(state, "Player completed the dangerous section; fresh quest state is complete", {
+          step: "Quest complete", risk: "SAFE", state: "COMPLETE", authority: "NONE",
+          revision: state.revision + 1, manualReason: null
+        });
+      default:
+        return reject(state, `unknown action ${action.type}`);
+    }
+  }
+
+  function invariants(state) {
+    return {
+      singleAuthority: ["NONE", "AUTOMATION", "AGENT", "PLAYER"].includes(state.authority),
+      dangerGate: !(state.risk === "MANUAL_REQUIRED" && ["AUTOMATION", "AGENT"].includes(state.authority)),
+      freshness: !(state.authority === "AGENT" && state.proposalRevision !== state.revision)
+    };
+  }
+
+  return { initial, reduce, invariants };
+})();
+
+const actions = [
+  ["Load Misthalin step", "LOAD_MISTHALIN"],
+  ["No progress attempt", "AUTO_NO_PROGRESS"],
+  ["Automation progressed", "AUTO_PROGRESS"],
+  ["Local recovery worked", "LOCAL_RECOVERY_WORKED"],
+  ["Local recovery failed", "LOCAL_RECOVERY_FAILED"],
+  ["Agent proposes safe action", "AGENT_SAFE_PROPOSAL"],
+  ["Agent proposal progressed", "AGENT_PROGRESS"],
+  ["Agent action failed", "AGENT_FAILED"],
+  ["Agent abstains", "AGENT_ABSTAINED"],
+  ["Submit stale proposal", "AGENT_STALE_PROPOSAL"],
+  ["Agent proposes unsafe action", "AGENT_UNSAFE_PROPOSAL"],
+  ["Load Vampyre boss gate", "LOAD_VAMPYRE_BOSS"],
+  ["Resume without completing boss", "PLAYER_RESUME_UNCHANGED"],
+  ["Player completed boss", "PLAYER_COMPLETED_BOSS"],
+  ["Emergency stop", "EMERGENCY"],
+  ["Reset", "RESET"]
+];
+
+const scenarios = [
+  {
+    name: "Misthalin recovery",
+    description: "Three real no-progress results trigger local recovery, then a fresh allowlisted agent action advances the quest.",
+    steps: [
+      ["Load the safe passage step", "LOAD_MISTHALIN"],
+      ["Record no progress (1)", "AUTO_NO_PROGRESS"],
+      ["Record no progress (2)", "AUTO_NO_PROGRESS"],
+      ["Record no progress (3)", "AUTO_NO_PROGRESS"],
+      ["Exhaust local recovery", "LOCAL_RECOVERY_FAILED"],
+      ["Accept a safe agent proposal", "AGENT_SAFE_PROPOSAL"],
+      ["Verify agent progress", "AGENT_PROGRESS"]
+    ]
+  },
+  {
+    name: "Agent abstains",
+    description: "When Wiki context is inconclusive, abstention transfers authority to the player instead of guessing.",
+    steps: [
+      ["Load the safe passage step", "LOAD_MISTHALIN"],
+      ["No progress (1)", "AUTO_NO_PROGRESS"],
+      ["No progress (2)", "AUTO_NO_PROGRESS"],
+      ["No progress (3)", "AUTO_NO_PROGRESS"],
+      ["Exhaust local recovery", "LOCAL_RECOVERY_FAILED"],
+      ["Agent abstains", "AGENT_ABSTAINED"]
+    ]
+  },
+  {
+    name: "Stale proposal",
+    description: "A proposal for an older context is rejected and performs no action.",
+    steps: [
+      ["Load the safe passage step", "LOAD_MISTHALIN"],
+      ["No progress (1)", "AUTO_NO_PROGRESS"],
+      ["No progress (2)", "AUTO_NO_PROGRESS"],
+      ["No progress (3)", "AUTO_NO_PROGRESS"],
+      ["Exhaust local recovery", "LOCAL_RECOVERY_FAILED"],
+      ["Submit an old revision", "AGENT_STALE_PROPOSAL"]
+    ]
+  },
+  {
+    name: "Vampyre boss handoff",
+    description: "The basement transition belongs to the player. Resume cannot weaken the gate; completion is observed from a fresh quest state.",
+    steps: [
+      ["Reach the Count Draynor gate", "LOAD_VAMPYRE_BOSS"],
+      ["Try automation anyway", "AUTO_PROGRESS"],
+      ["Try an agent override", "AGENT_UNSAFE_PROPOSAL"],
+      ["Resume before completing it", "PLAYER_RESUME_UNCHANGED"],
+      ["Complete the boss manually", "PLAYER_COMPLETED_BOSS"]
+    ]
+  }
+];
+
+let state = PlanQuestingAuthority.initial();
+let scenarioIndex = 0;
+let scenarioStep = 0;
+
+function dispatch(type) {
+  state = PlanQuestingAuthority.reduce(state, { type });
+  render();
+}
+
+function field(label, value, wide = false) {
+  return `<div class="field${wide ? " wide" : ""}"><span class="label">${label}</span><span class="value">${value ?? "—"}</span></div>`;
+}
+
+function render() {
+  const badgeClass = state.risk === "SAFE" ? "safe" : state.risk === "CAUTION" ? "caution" : "manual";
+  document.querySelector("#state").innerHTML = [
+    field("Quest", state.quest),
+    field("Machine state", state.state),
+    field("Authority", state.authority),
+    field("Context revision", state.revision),
+    field("No-progress attempts", state.attempts),
+    field("Risk", `<span class="badge ${badgeClass}">${state.risk}</span>`),
+    field("Active step", state.step, true),
+    field("Recovery request", state.recoveryRequest, true),
+    field("Manual reason", state.manualReason, true),
+    field("What just changed", state.lastChange, true)
+  ].join("");
+
+  const checks = PlanQuestingAuthority.invariants(state);
+  setCheck("singleAuthority", checks.singleAuthority, "Exactly one authority value is active");
+  setCheck("dangerGate", checks.dangerGate, "Dangerous content belongs only to the player");
+  setCheck("freshness", checks.freshness, "Agent authority matches the current context revision");
+
+  document.querySelector("#log").innerHTML = state.log.map(x => `<li>${x}</li>`).join("");
+  renderScenario();
+}
+
+function setCheck(id, ok, text) {
+  const node = document.querySelector(`#${id}`);
+  node.className = ok ? "invariant" : "invariant broken";
+  node.textContent = `${ok ? "✓" : "✕"} ${text}`;
+}
+
+function renderScenario() {
+  const selected = scenarios[scenarioIndex];
+  document.querySelector("#tabs").innerHTML = scenarios.map((scenario, index) =>
+    `<button class="${index === scenarioIndex ? "active" : ""}" data-tab="${index}">${scenario.name}</button>`
+  ).join("");
+  document.querySelectorAll("[data-tab]").forEach(button => button.onclick = () => startScenario(Number(button.dataset.tab)));
+
+  document.querySelector("#scenario").innerHTML = `
+    <p>${selected.description}</p>
+    ${selected.steps.map(([label], index) => `
+      <div class="scenario-step ${index < scenarioStep ? "done" : index === scenarioStep ? "current" : ""}">
+        <button data-scenario-step="${index}" ${index !== scenarioStep ? "disabled" : ""}>${index + 1}. ${label}</button>
+        <span>${index < scenarioStep ? "done" : index === scenarioStep ? "next" : "waiting"}</span>
+      </div>`).join("")}`;
+  document.querySelectorAll("[data-scenario-step]").forEach(button => button.onclick = () => {
+    const index = Number(button.dataset.scenarioStep);
+    dispatch(selected.steps[index][1]);
+    scenarioStep += 1;
+    renderScenario();
+  });
+}
+
+function startScenario(index) {
+  scenarioIndex = index;
+  scenarioStep = 0;
+  state = PlanQuestingAuthority.initial();
+  render();
+}
+
+document.querySelector("#freePlay").innerHTML = actions.map(([label, type]) =>
+  `<button class="${type === "RESET" ? "primary" : type === "EMERGENCY" ? "danger" : ""}" data-action="${type}">${label}</button>`
+).join("");
+document.querySelectorAll("[data-action]").forEach(button => button.onclick = () => dispatch(button.dataset.action));
+
+render();
+</script>
+</body>
+</html>

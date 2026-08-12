@@ -11,6 +11,7 @@ import net.runelite.client.plugins.microbot.Script;
 import net.runelite.client.plugins.microbot.api.tileobject.models.TileObjectType;
 import net.runelite.client.plugins.microbot.questhelper.logic.PiratesTreasure;
 import net.runelite.client.plugins.microbot.questhelper.logic.QuestRegistry;
+import net.runelite.client.plugins.microbot.questhelper.automation.QuestAutomationLease;
 import net.runelite.client.plugins.microbot.questhelper.questinfo.QuestHelperQuest;
 import net.runelite.client.plugins.microbot.questhelper.managers.QuestContainerManager;
 import net.runelite.client.plugins.microbot.questhelper.questhelpers.QuestHelper;
@@ -106,6 +107,9 @@ public class QuestScript extends Script {
 
 
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
+            if (!QuestAutomationLease.acquire(QuestAutomationLease.Owner.LEGACY_QUEST_SCRIPT)) {
+                return;
+            }
             try {
                 if (!config.startStopQuestHelper()) return;
                 if (!Microbot.isLoggedIn()) return;
@@ -281,6 +285,8 @@ public class QuestScript extends Script {
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
                 ex.printStackTrace(System.out);
+            } finally {
+                QuestAutomationLease.release(QuestAutomationLease.Owner.LEGACY_QUEST_SCRIPT);
             }
         }, 0, Rs2Random.between(400, 1000), TimeUnit.MILLISECONDS);
         return true;
@@ -1274,9 +1280,59 @@ public class QuestScript extends Script {
         } else if (step instanceof PuzzleStep) {
             return applyPuzzleStep((PuzzleStep) step);
         } else if (step instanceof DetailedQuestStep) {
-            return applyDetailedQuestStep((DetailedQuestStep) step);
+			DetailedQuestStep detailedStep = (DetailedQuestStep) step;
+			if (detailedStep.getDefinedPoint() == null && detailedStep.getRequirements().isEmpty()
+					&& detailedStep.getIconItemID() == -1) {
+				return false;
+			}
+			return applyDetailedQuestStep(detailedStep);
         }
-        return true;
+		return false;
+    }
+
+    /**
+     * Executes one currently selected Quest Helper action for an external
+     * controller which already owns {@link QuestAutomationLease}.
+     *
+     * <p>This intentionally performs one bounded decision. The caller must
+     * verify semantic progress before requesting another action.</p>
+     */
+    public boolean executeActiveStepOnce() {
+        if (!QuestAutomationLease.isOwnedBy(QuestAutomationLease.Owner.PLAN_QUESTING)) {
+            return false;
+        }
+
+        QuestHelperPlugin plugin = getQuestHelperPlugin();
+        if (plugin == null || plugin.getSelectedQuest() == null ||
+                plugin.getSelectedQuest().getCurrentStep() == null) {
+            return false;
+        }
+
+        QuestStep step = plugin.getSelectedQuest().getCurrentStep().getActiveStep();
+        if (step == null) {
+            step = plugin.getSelectedQuest().getCurrentStep();
+        }
+
+        if (Rs2Dialogue.isInDialogue()) {
+            if (Rs2Widget.isWidgetVisible(ComponentID.DIALOG_OPTION_OPTIONS)) {
+                for (var choice : step.getChoices().getChoices()) {
+                    if (choice.getExpectedPreviousLine() == null &&
+                            (choice.getExcludedStrings() == null ||
+                                    choice.getExcludedStrings().stream().noneMatch(Rs2Widget::hasWidget)) &&
+                            Rs2Dialogue.hasDialogueOption(choice.getChoice())) {
+                        return Rs2Dialogue.clickOption(choice.getChoice(), false);
+                    }
+                }
+                if (Rs2Dialogue.acceptQuestStartDialogue()) {
+                    return true;
+                }
+                return Rs2Dialogue.handleQuestOptionDialogueSelection();
+            }
+            Rs2Keyboard.keyPress(KeyEvent.VK_SPACE);
+            return true;
+        }
+
+        return applyStep(step);
     }
 
     public boolean applyNpcStep(NpcStep step) {
@@ -1572,16 +1628,19 @@ public class QuestScript extends Script {
 				&& fromArea.hasLineOfSightTo(Microbot.getClient().getTopLevelWorldView(), targetArea);
 	}
 
-    private boolean applyDetailedQuestStep(DetailedQuestStep conditionalStep) {
-        if (conditionalStep instanceof NpcStep) return false;
+	private boolean applyDetailedQuestStep(DetailedQuestStep conditionalStep) {
+		if (conditionalStep instanceof NpcStep) return false;
+		WorldPoint definedPoint = conditionalStep.getDefinedPoint() == null
+				? null
+				: conditionalStep.getDefinedPoint().getWorldPoint();
 
-        if (conditionalStep.getIconItemID() != -1
-                && conditionalStep.getDefinedPoint().getWorldPoint() != null
-                && !conditionalStep.getDefinedPoint().getWorldPoint().toWorldArea().hasLineOfSightTo(Microbot.getClient().getTopLevelWorldView(), Rs2Player.getWorldLocation())) {
-            if (Rs2Tile.areSurroundingTilesWalkable(conditionalStep.getDefinedPoint().getWorldPoint(), 1, 1)) {
-                WorldPoint nearestUnreachableWalkableTile = Rs2Tile.getNearestWalkableTileWithLineOfSight(conditionalStep.getDefinedPoint().getWorldPoint());
-                if (nearestUnreachableWalkableTile != null) {
-                    return Rs2Walker.walkTo(nearestUnreachableWalkableTile, 0);
+		if (conditionalStep.getIconItemID() != -1
+				&& definedPoint != null
+				&& !definedPoint.toWorldArea().hasLineOfSightTo(Microbot.getClient().getTopLevelWorldView(), Rs2Player.getWorldLocation())) {
+			if (Rs2Tile.areSurroundingTilesWalkable(definedPoint, 1, 1)) {
+				WorldPoint nearestUnreachableWalkableTile = Rs2Tile.getNearestWalkableTileWithLineOfSight(definedPoint);
+				if (nearestUnreachableWalkableTile != null) {
+					return Rs2Walker.walkTo(nearestUnreachableWalkableTile, 0);
                 }
             }
         }
@@ -1606,11 +1665,11 @@ public class QuestScript extends Script {
 			}
 		}
 
-        if (!usingItems && conditionalStep.getDefinedPoint().getWorldPoint() != null && !Rs2Walker.walkTo(conditionalStep.getDefinedPoint().getWorldPoint()))
-            return true;
+		if (!usingItems && definedPoint != null && !Rs2Walker.walkTo(definedPoint))
+			return true;
 
-		if (conditionalStep.getIconItemID() != -1 && conditionalStep.getDefinedPoint().getWorldPoint() != null
-				&& conditionalStep.getDefinedPoint().getWorldPoint().toWorldArea().hasLineOfSightTo(Microbot.getClient().getTopLevelWorldView(), Rs2Player.getWorldLocation())) {
+		if (conditionalStep.getIconItemID() != -1 && definedPoint != null
+				&& definedPoint.toWorldArea().hasLineOfSightTo(Microbot.getClient().getTopLevelWorldView(), Rs2Player.getWorldLocation())) {
 			if (conditionalStep.getQuestHelper().getQuest() == QuestHelperQuest.ZOGRE_FLESH_EATERS) {
 				if (conditionalStep.getIconItemID() == 4836) { // strange potion
 					lootGroundItem(ItemID.CUP_OF_TEA_4838, 20);

@@ -174,6 +174,11 @@ public class QuestHelperPlugin extends Plugin
 	@Inject
 	QuestScript questScript;
 
+	public QuestScript getQuestScript()
+	{
+		return questScript;
+	}
+
 	@Provides
 	QuestHelperConfig getConfig(ConfigManager configManager)
 	{

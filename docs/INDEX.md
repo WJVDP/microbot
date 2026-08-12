@@ -7,5 +7,7 @@
 - [Runtime CLI](MICROBOT_CLI.md)
 - [Agent Server](AGENT_SERVER.md)
 - [Agentic Testing Loop](AGENTIC_TESTING_LOOP.md)
+- [Hybrid Questing](questing/ARCHITECTURE.md)
+- [Add a Quest to PlanQuesting](questing/ADDING_A_QUEST.md)
 - [Entity Guides](entity-guides/README.md)
 - [Gallery](gallery.md)
